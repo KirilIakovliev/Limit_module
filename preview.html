@@ -1,0 +1,3022 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лимитный модуль АББ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Лимитный модуль АББ
+   ============================================================ */
+:root{
+  --white:#ffffff;
+  --ink:#0F1D2B;
+  --ink-2:#44586C;
+  --ink-3:#8496A8;
+  --line:#E2E8EF;
+  --line-2:#F2F6FA;
+
+  --navy:#123A63;
+  --blue-700:#1A5185;
+  --blue-600:#2A6CA8;
+  --blue-400:#4E93C9;
+  --blue-tint:#EFF5FB;
+  --blue-tint-2:#DCE9F5;
+
+  --red:#B23B2C;
+  --amber:#B7791F;
+  --green:#1F7A4C;
+
+  /* Градиент кнопки «Поиск» — по горизонтали, кнопка широкая и низкая */
+  --gradient-primary:linear-gradient(100deg,#123A63 0%,#22608F 55%,#4E93C9 100%);
+  /* Градиент активной вкладки — почти вертикальный: левый и правый край
+     получаются одного тона, поэтому рамка выглядит одинаковой со всех сторон */
+  --gradient-tab:linear-gradient(168deg,#1B4E80 0%,#2A6CA8 100%);
+  --gradient-export:linear-gradient(100deg,#2A6CA8 0%,#5257B4 52%,#7E51B8 100%);
+
+  --shadow-soft:0 1px 2px rgba(15,29,43,.05), 0 4px 14px rgba(15,29,43,.06);
+  --shadow-lifted:0 2px 6px rgba(15,29,43,.07), 0 18px 44px rgba(15,29,43,.10);
+  /* Тень повторяет форму вкладки: небольшой сдвиг вправо-вниз, скругление
+     наследуется от border-radius самого элемента, размытие умеренное —
+     иначе вместо тени получается размытое пятно без формы */
+  --shadow-tab:2px 3px 6px rgba(18,58,99,.14), 4px 8px 16px rgba(18,58,99,.16);
+  --shadow-tab-hover:3px 4px 8px rgba(18,58,99,.18), 6px 12px 22px rgba(18,58,99,.20);
+
+  --radius-pill:999px;
+  --radius-card:14px;
+  --ease:cubic-bezier(.22,.7,.2,1);
+
+  --search-width:680px;
+  --tabs-width:1240px;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--white);
+  color:var(--ink-2);
+  font-family:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
+
+/* ============================================================
+   Сцена и подъём поисковой строки
+   ============================================================ */
+.stage{max-width:1400px;margin:0 auto;padding:32px 24px 120px}
+/* transform создаёт контекст наложения, поэтому z-index подсказок
+   действует только внутри .hero. Без явного порядка результаты поиска
+   (тоже с transform) рисуются поверх выпадающего списка. */
+.hero{
+  position:relative;z-index:20;
+  transform:translateY(26vh);transition:transform .78s var(--ease);will-change:transform;
+}
+body.is-searching .hero{transform:translateY(0)}
+
+.page-title-wrap{
+  display:grid;grid-template-rows:1fr;
+  transition:grid-template-rows .6s var(--ease), opacity .35s ease;
+}
+.page-title-inner{overflow:hidden;text-align:center}
+body.is-searching .page-title-wrap{grid-template-rows:0fr;opacity:0}
+
+.page-title{
+  font-family:Manrope,sans-serif;font-weight:800;
+  font-size:clamp(28px,4.6vw,42px);letter-spacing:-.03em;
+  color:var(--ink);margin:0 0 10px;
+}
+.page-title em{
+  font-style:normal;
+  background:var(--gradient-primary);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.page-subtitle{margin:0 0 34px;color:var(--ink-3);font-size:15px}
+
+/* ============================================================
+   Поисковая строка
+   ============================================================ */
+.search-area{position:relative;max-width:var(--search-width);margin:0 auto}
+.search-field{
+  display:flex;align-items:center;gap:10px;
+  height:60px;padding:0 8px 0 20px;
+  background:var(--white);
+  border:1px solid var(--line);border-radius:var(--radius-pill);
+  box-shadow:var(--shadow-soft);
+  transition:box-shadow .22s ease,border-color .22s ease;
+}
+.search-field:hover{box-shadow:var(--shadow-lifted)}
+.search-field.is-focused{border-color:var(--blue-tint-2);box-shadow:var(--shadow-lifted)}
+.search-icon{flex:none;color:var(--ink-3)}
+
+#searchInput{
+  flex:1;min-width:0;height:100%;
+  border:0;outline:0;background:transparent;
+  font-family:Inter,sans-serif;font-size:17px;color:var(--ink);
+}
+#searchInput::placeholder{color:#A6B4C2}
+
+.clear-button{
+  flex:none;width:30px;height:30px;display:none;
+  align-items:center;justify-content:center;
+  border:0;border-radius:50%;background:transparent;
+  color:var(--ink-3);font-size:18px;line-height:1;
+}
+.clear-button:hover{background:var(--line-2);color:var(--ink)}
+.search-field.has-text .clear-button{display:flex}
+
+.search-button{
+  flex:none;height:46px;padding:0 30px;
+  border:0;border-radius:var(--radius-pill);
+  background:var(--gradient-primary);background-size:150% 100%;background-position:0% 50%;
+  color:#fff;font-family:Manrope,sans-serif;font-weight:700;font-size:15px;
+  box-shadow:0 2px 10px rgba(18,58,99,.26);
+  transition:background-position .45s var(--ease),box-shadow .25s ease,transform .12s ease,opacity .2s ease;
+}
+.search-button:hover:not(:disabled){background-position:100% 50%;box-shadow:0 4px 18px rgba(18,58,99,.32)}
+.search-button:active:not(:disabled){transform:translateY(1px)}
+.search-button:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+
+.search-hint{height:20px;margin:10px 4px 0;font-size:12.5px;color:var(--ink-3);text-align:center;transition:opacity .25s ease}
+body.is-searching .search-hint{opacity:0}
+
+/* ============================================================
+   Подсказки
+   ============================================================ */
+.suggestions{
+  position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:30;
+  background:var(--white);border:1px solid var(--line);border-radius:var(--radius-card);
+  box-shadow:var(--shadow-lifted);padding:6px;display:none;max-height:340px;overflow-y:auto;
+  text-align:left;
+}
+.suggestions.is-open{display:block}
+.suggestion{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;cursor:pointer}
+.suggestion[aria-selected="true"]{background:var(--blue-tint)}
+.suggestion-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--gradient-primary);opacity:.22}
+.suggestion[aria-selected="true"] .suggestion-dot{opacity:1}
+.suggestion-name{font-weight:500;color:var(--ink);font-size:15px;display:block}
+.suggestion-name b{font-weight:700;color:var(--blue-700)}
+.suggestion-meta{margin-top:1px;font-size:12.5px;color:var(--ink-3);display:block}
+.suggestion-meta b{font-weight:700;color:var(--blue-700)}
+.suggestions-empty{padding:14px 12px;font-size:14px;color:var(--ink-3)}
+
+/* ============================================================
+   Обработка и ошибки
+   ============================================================ */
+.result-panel{
+  position:relative;z-index:1;
+  margin-top:44px;opacity:0;transform:translateY(14px);
+  transition:opacity .5s ease .15s,transform .5s var(--ease) .15s;
+  pointer-events:none;
+}
+.result-panel.is-visible{opacity:1;transform:none;pointer-events:auto}
+
+.processing{display:none;flex-direction:column;align-items:center;padding:56px 0 24px}
+.processing.is-visible{display:flex}
+.processing-ring{position:relative;width:148px;height:148px;display:grid;place-items:center}
+.processing-ring::before,.processing-ring::after{content:"";position:absolute;inset:0;border-radius:50%}
+.processing-ring::before{border:4px solid var(--line-2)}
+.processing-ring::after{
+  background:conic-gradient(from 0deg,transparent 0deg 190deg,var(--navy) 250deg,var(--blue-400) 358deg,transparent 360deg);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 4px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 4px));
+  animation:spin 1.15s linear infinite;
+}
+.processing-ring span{font-family:Manrope,sans-serif;font-weight:700;font-size:15px;color:var(--navy)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.processing p{margin:20px 0 0;font-size:13px;color:var(--ink-3)}
+
+.error-box{
+  display:none;max-width:var(--search-width);margin:8px auto 0;padding:18px 20px;
+  border:1px solid #EFD4CF;border-radius:var(--radius-card);background:#FDF5F3;
+  color:#8A3524;font-size:14px;text-align:center;
+}
+.error-box.is-visible{display:block}
+.error-box button{margin-top:10px}
+
+/* ============================================================
+   ДЕРЕВО ВКЛАДОК — по центру, вкладки одной ширины
+   ============================================================ */
+.tab-level{
+  display:grid;grid-template-rows:0fr;
+  transition:grid-template-rows .48s var(--ease),opacity .35s ease;
+  opacity:0;
+}
+.tab-level > *{overflow:hidden;min-height:0}
+.tab-level.is-open{grid-template-rows:1fr;opacity:1}
+
+/* ------------------------------------------------------------
+   Признак раскрытого уровня — короткая горизонтальная черта.
+
+   Она стоит у самого края контейнера (слева для ветки «Компания»,
+   справа для «Событий») и не зависит ни от того, какая карточка
+   раскрыта, ни от ширины строки: у всех уровней одна и та же позиция.
+   По вертикали — ровно посередине промежутка между строками.
+
+   Поле --marker-gutter резервирует под неё место, поэтому черта
+   никогда не наезжает на карточки.
+   ------------------------------------------------------------ */
+.tab-tree{position:relative;--marker-gutter:76px;--row-capacity:5}
+
+/* промежуток между строками: 18px тени предыдущей + padding-top ветки */
+.tab-branch{position:relative;padding-top:34px}
+
+/* ------------------------------------------------------------
+   Стрелки у первой строки: показывают, в какую сторону её ещё
+   можно сдвинуть. Медленно пульсируют; та, в сторону которой
+   строка уже уехала, гаснет и возвращается вместе со строкой.
+   ------------------------------------------------------------ */
+.row-arrow{
+  position:absolute;z-index:2;
+  width:16px;height:16px;
+  color:var(--blue-400);
+  pointer-events:none;
+  opacity:.55;
+  /* left и top проставляет tab-tree.js по фактическому краю карточек,
+     поэтому стрелки едут вместе со строкой */
+  transition:opacity .4s ease, left .55s var(--ease);
+  animation:arrowPulse 3.4s ease-in-out infinite;
+  animation-delay:0s;
+}
+.row-arrow svg{width:100%;height:100%;display:block}
+
+/* Строка сдвинута: пульсация останавливается у обеих стрелок,
+   а та, в сторону которой строка уже уехала, гаснет.
+   В центре анимация запускается заново одновременно у обеих —
+   поэтому пульсация синхронна. */
+.tab-tree.branch-left .row-arrow,
+.tab-tree.branch-right .row-arrow{animation:none;opacity:.55}
+.tab-tree.branch-left .row-arrow--left,
+.tab-tree.branch-right .row-arrow--right{opacity:0}
+
+@keyframes arrowPulse{
+  0%,100%{opacity:.14}
+  50%{opacity:.72}
+}
+
+.tab-branch::before{
+  content:"";position:absolute;top:10px;   /* середина промежутка 18+34+4 */
+  width:56px;height:2px;
+  background:var(--blue-400);border-radius:2px;opacity:.55;
+  display:none;
+}
+.tab-tree.branch-left .tab-branch::before{display:block;left:0}
+.tab-tree.branch-right .tab-branch::before{display:block;right:0}
+
+.tab-row{
+  /* базовая ширина карточки: доля самой ёмкой строки */
+  --tab-basis:calc((100% - (var(--row-capacity) - 1) * 12px) / var(--row-capacity));
+  display:flex;justify-content:center;align-items:stretch;
+  gap:12px;flex-wrap:wrap;
+  /* ширина ограничена ещё и полями под черту-указатель, иначе
+     строка из пяти карточек не помещается между ними и обрезается */
+  max-width:min(var(--tabs-width), calc(100% - 2 * var(--marker-gutter)));
+  margin:0 auto;
+  padding:4px 6px 18px;      /* запас снизу и справа под смещённую тень */
+  transform:translateX(0);
+  transition:transform .55s var(--ease);
+}
+
+.tab{
+  position:relative;
+  /* ширина одинакова во всех строках; сжимается, если соседняя
+     карточка потребовала больше места под длинное название */
+  flex:0 1 var(--tab-basis);
+  min-width:var(--tab-min, 0px);max-width:none;
+  display:flex;flex-direction:column;justify-content:center;gap:3px;
+  min-height:76px;padding:12px 18px;
+  text-align:center;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--white);
+  background-clip:padding-box;   /* фон не подкрашивает рамку */
+  box-shadow:0 1px 2px rgba(15,29,43,.04);
+  transition:border-color .2s ease,background .2s ease,box-shadow .25s ease,transform .2s var(--ease);
+}
+.tab-level.is-open .tab{animation:tabAppear .38s var(--ease) both}
+.tab:hover:not(.is-static):not(.is-active){border-color:var(--blue-tint-2);background:var(--blue-tint)}
+
+.tab-label{
+  font-family:Manrope,sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+}
+.tab-value{
+  font-family:Manrope,sans-serif;font-weight:700;font-size:15px;
+  color:var(--ink);letter-spacing:-.01em;line-height:1.25;
+  overflow-wrap:break-word;      /* длинное название переносится, а не вылезает */
+}
+
+/* Ширина верхней строки подбирается замером: tab-tree.js на мгновение
+   разворачивает карточки в одну строку, берёт самую широкую и ставит эту
+   ширину всем карточкам строки через --tab-min. Поэтому и наименование,
+   и ИНН, и КПП умещаются в одну строку, а карточки остаются одинаковыми. */
+.tab-row.is-measuring-whole .tab,
+.tab-row.is-measuring-word .tab{flex:0 0 auto;min-width:0}
+.tab-row.is-measuring-whole .tab{width:max-content}
+.tab-row.is-measuring-word .tab{width:min-content}
+.tab-row.is-measuring-whole .tab-label,
+.tab-row.is-measuring-whole .tab-value,
+.tab-row.is-measuring-whole .tab-note{white-space:nowrap}
+
+/* ------------------------------------------------------------
+   Верхняя строка — не набор карточек, а сплошная полоса:
+
+     [ Компания ] │ [ ИНН   КПП ] │ [ События ]
+
+   Боковые вкладки без рамки и фона, реквизиты посередине залиты
+   серым, границы между частями — короткие вертикальные линии.
+   У нажатой вкладки скругляется только внешний угол: слева у
+   «Компании», справа у «Событий».
+   ------------------------------------------------------------ */
+#companyTabs{gap:0}
+
+#companyTabs > .tab{
+  flex:0 1 auto;
+  min-width:var(--tab-min, var(--tab-basis));
+  border:0;background:transparent;box-shadow:none;border-radius:0;
+}
+#companyTabs > .tab:hover:not(.is-active){background:var(--blue-tint)}
+
+#companyTabs > .tab.is-active{
+  background:var(--gradient-tab);
+  box-shadow:var(--shadow-tab);
+}
+#companyTabs > .tab.is-active:hover{background:linear-gradient(168deg,#123A63 0%,#1E5588 100%)}
+
+.tab--company.is-active{border-radius:14px 0 0 14px}
+.tab--events.is-active{border-radius:0 14px 14px 0}
+
+/* реквизиты: один серый блок с разделителями по краям */
+.tab-pair{
+  position:relative;flex:0 0 auto;
+  display:flex;align-items:stretch;
+  background:var(--line-2);
+}
+.tab-pair::before,.tab-pair::after{
+  content:"";position:absolute;top:24%;height:52%;width:1px;
+  background:var(--line);
+}
+.tab-pair::before{left:0}
+.tab-pair::after{right:0}
+
+.tab-cell{
+  display:flex;flex-direction:column;justify-content:center;gap:3px;
+  min-height:76px;padding:12px 20px;text-align:center;
+}
+.tab-cell .tab-value{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.tab-note{font-size:12px;color:var(--ink-3);line-height:1.3}
+.tab-flag{
+  font-style:normal;font-weight:500;font-size:9.5px;letter-spacing:.04em;
+  text-transform:none;color:var(--amber);
+  padding:1px 6px;margin-left:4px;border-radius:var(--radius-pill);
+  background:#FDF6E7;white-space:nowrap;
+}
+.tab.is-active .tab-flag{background:rgba(255,255,255,.16);color:rgba(255,255,255,.86)}
+
+/* активная вкладка: рамка одного цвета со всех сторон, тень без бокового смещения */
+.tab.is-active{
+  background:var(--gradient-tab);
+  border-color:#1B4E80;
+  box-shadow:var(--shadow-tab);
+}
+/* наведение на раскрытую вкладку — темнее, а не светлее: белый текст
+   должен оставаться читаемым */
+.tab.is-active:hover{
+  background:linear-gradient(168deg,#123A63 0%,#1E5588 100%);
+  border-color:#0F3559;
+  box-shadow:var(--shadow-tab-hover);
+}
+.tab.is-active .tab-label{color:rgba(255,255,255,.70)}
+.tab.is-active .tab-value{color:#fff}
+.tab.is-active .tab-note{color:rgba(255,255,255,.80)}
+
+/* информационные вкладки ИНН / КПП — не кликабельны */
+.tab.is-static{background:var(--line-2);border-color:transparent;cursor:default;box-shadow:none}
+.tab.is-static .tab-value{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+
+/* вкладка «События» с критичными отклонениями */
+.tab.has-alert:not(.is-active){border-color:#F0D9C8;background:#FEF8F3}
+.tab.has-alert:not(.is-active) .tab-value{color:var(--amber)}
+
+@keyframes tabAppear{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   Контент
+   ============================================================ */
+.panel-content{margin-top:20px;animation:contentAppear .4s ease both}
+.panel-content:empty{margin:0}
+@keyframes contentAppear{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.content-head{
+  display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;
+  gap:8px 18px;padding-bottom:14px;border-bottom:1px solid var(--line);
+}
+.content-head h2{font-family:Manrope,sans-serif;font-weight:700;font-size:19px;letter-spacing:-.02em;color:var(--ink);margin:0}
+.content-head .content-meta{font-size:13px;color:var(--ink-3)}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0 6px}
+.card{padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius-card);background:#fff}
+.card .card-key{font-size:12px;color:var(--ink-3);letter-spacing:.02em}
+.card .card-value{margin-top:6px;font-family:Manrope,sans-serif;font-weight:700;font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
+.card.is-accent{background:var(--blue-tint);border-color:transparent}
+.card.is-accent .card-value{color:var(--navy)}
+
+.usage-bar{margin-top:10px;height:5px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.usage-bar i{display:block;height:100%;border-radius:3px;background:var(--gradient-primary);transition:width .8s var(--ease)}
+
+.table-wrap{margin-top:16px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:14px}
+thead th{
+  position:sticky;top:0;z-index:3;background:#fff;padding:13px 16px;text-align:right;
+  font-family:Manrope,sans-serif;font-weight:600;font-size:11.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--line);white-space:nowrap;
+}
+thead th:first-child{text-align:left;left:0;z-index:4}
+tbody td{padding:11px 16px;text-align:right;border-bottom:1px solid var(--line-2);font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+tbody td:first-child{text-align:left;color:var(--ink-2);white-space:normal;min-width:250px}
+thead th:first-child,tbody td:first-child{position:sticky;left:0;background:#fff}
+tr.group-row td{
+  background:var(--line-2);padding:9px 16px;font-family:Manrope,sans-serif;font-weight:700;
+  font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);
+  border-bottom:1px solid var(--line);
+}
+tbody tr:not(.group-row):hover td,tbody tr:not(.group-row):hover td:first-child{background:#F8FBFD}
+.unit{font-size:12px;color:var(--ink-3);margin-left:5px}
+.delta.is-up{color:var(--green);font-weight:600}
+.delta.is-down{color:var(--red);font-weight:600}
+.no-data{color:#C3CEDA}
+.badge{display:inline-block;padding:2px 9px;border-radius:var(--radius-pill);background:var(--blue-tint);color:var(--blue-700);font-size:12px;font-weight:600}
+
+/* ============================================================
+   События
+   ============================================================ */
+/* блоки внутри «Основная информация» */
+.block-title{
+  font-family:Manrope,sans-serif;font-weight:700;font-size:13px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--navy);
+  margin:26px 0 0;text-align:left;
+}
+.bar-note,.table-note{margin:8px 0 0;font-size:12.5px;color:var(--ink-3);text-align:left}
+.sub-title{
+  font-family:Manrope,sans-serif;font-weight:600;font-size:12.5px;
+  letter-spacing:.04em;color:var(--ink-2);margin:20px 0 0;text-align:left;
+}
+.badge.is-pending{background:#FDF6E7;color:var(--amber)}
+.comment-cell{text-align:left !important;white-space:normal !important;color:var(--ink-2) !important;min-width:220px}
+/* сетка структуры ГК: пять колонок, строки выровнены по колонкам */
+.group-grid{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:12px;margin-top:12px;
+}
+.group-grid--head{margin-top:20px;gap:12px}
+.group-grid--head span{
+  font-family:Manrope,sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
+  text-align:center;padding:0 6px;line-height:1.3;
+}
+.group-cell{
+  display:flex;flex-direction:column;justify-content:center;gap:4px;
+  min-height:68px;padding:12px 14px;text-align:center;
+  border:1px solid transparent;border-radius:12px;
+  background:var(--line-2);
+}
+.group-cell.is-accent{background:var(--blue-tint)}
+.group-cell .cell-label{
+  font-family:Manrope,sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);line-height:1.3;
+}
+.group-cell .cell-value{
+  font-family:Manrope,sans-serif;font-weight:700;font-size:15px;
+  color:var(--ink);font-variant-numeric:tabular-nums;
+}
+.group-cell.is-accent .cell-value{color:var(--navy)}
+
+/* наименование компании — единственная кликабельная ячейка.
+   Как и прочие кликабельные карточки, по умолчанию белая;
+   выбранная заливается тем же серым, что и справочные ячейки,
+   и получает тёмно-синюю рамку. */
+.group-cell.is-selectable{
+  cursor:pointer;font:inherit;
+  background:var(--white);
+  border:1px solid var(--line);
+  transition:border-color .18s ease,background .18s ease,box-shadow .18s ease,transform .12s ease;
+}
+.group-cell.is-selectable:hover{border-color:var(--blue-tint-2);background:var(--blue-tint)}
+.group-cell.is-selectable:active{transform:translateY(1px)}
+.group-cell.is-selected{
+  background:var(--line-2);
+  border-color:var(--navy);
+  box-shadow:0 2px 8px rgba(18,58,99,.14);
+}
+.group-cell.is-selected .cell-value{color:var(--navy)}
+.group-cell .cell-note{font-size:10.5px;color:var(--ink-3);letter-spacing:.02em}
+/* карточка текущей компании — справочная, как и остальные серые */
+.group-cell.is-current .cell-note{font-weight:700;color:var(--ink-2)}
+
+/* строка с кнопкой перехода: раздвигает соседние строки. Сетка та же,
+   что у строк компаний, поэтому кнопка стоит точно под наименованием */
+.go-row{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:12px;align-items:center;
+  height:68px;margin-top:12px;
+  animation:goRowAppear .3s var(--ease) both;
+}
+.go-cell{display:flex;align-items:center;justify-content:center}
+@keyframes goRowAppear{from{opacity:0;height:0;margin-top:0}to{opacity:1;height:68px;margin-top:12px}}
+
+/* строка заголовка блока с кнопкой перехода справа */
+.block-head{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:16px;margin-top:26px;
+}
+.block-head .block-title{margin:0}
+.block-hint{font-size:12.5px;color:var(--ink-3)}
+.go-button{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:40px;padding:0 34px;
+  border:0;border-radius:var(--radius-pill);
+  background:var(--gradient-primary);background-size:150% 100%;background-position:0% 50%;
+  color:#fff;font-family:Manrope,sans-serif;font-weight:700;font-size:14px;
+  box-shadow:0 2px 12px rgba(18,58,99,.26);
+  transition:background-position .45s var(--ease),box-shadow .25s ease,transform .12s ease;
+}
+.go-button:hover{background-position:100% 50%;box-shadow:0 4px 18px rgba(18,58,99,.32)}
+.go-button:active{transform:translateY(1px)}
+.group-grid--members .cell-label{display:none}   /* дублируют шапку */
+
+.value-cell{text-align:left !important;white-space:normal !important;color:var(--ink) !important}
+
+.events{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.event{
+  display:flex;gap:14px;align-items:flex-start;
+  padding:14px 18px;border:1px solid var(--line);border-radius:var(--radius-card);
+  background:#fff;text-align:left;
+}
+.event-marker{flex:none;width:8px;height:8px;border-radius:50%;margin-top:7px}
+.event--critical{border-color:#F0D5CF;background:#FDF5F3}
+.event--critical .event-marker{background:var(--red)}
+.event--warning{border-color:#F0E3CB;background:#FEFAF3}
+.event--warning .event-marker{background:var(--amber)}
+.event--positive{border-color:#D2E7DC;background:#F5FBF8}
+.event--positive .event-marker{background:var(--green)}
+.event--info .event-marker{background:var(--blue-400)}
+.event-body{flex:1;min-width:0}
+.event-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.event-title{font-family:Manrope,sans-serif;font-weight:700;font-size:15px;color:var(--ink)}
+.event-tag{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.event-detail{margin-top:3px;font-size:14px;color:var(--ink-2)}
+.event-source{margin-top:4px;font-size:12px;color:var(--ink-3)}
+.events-empty{margin-top:20px;text-align:center;color:var(--ink-3);font-size:14px}
+
+/* ============================================================
+   Плавающая панель действий
+   ============================================================ */
+.secondary-button{
+  height:38px;padding:0 18px;border:1px solid var(--line);border-radius:var(--radius-pill);
+  background:#fff;color:var(--ink);font-size:14px;font-weight:500;
+}
+.secondary-button:hover{border-color:var(--blue-tint-2);background:var(--blue-tint)}
+
+.action-bar{
+  position:fixed;right:24px;bottom:24px;z-index:60;
+  display:flex;align-items:center;gap:10px;
+  padding:8px;border-radius:var(--radius-pill);
+  background:rgba(255,255,255,.86);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid var(--line);
+  box-shadow:var(--shadow-lifted);
+  opacity:0;transform:translateY(14px);
+  transition:opacity .35s ease,transform .35s var(--ease);
+}
+.action-bar.is-visible{opacity:1;transform:none}
+.action-bar[hidden]{display:none}
+
+.status-chip{
+  padding:5px 12px;border-radius:var(--radius-pill);
+  font-size:12px;font-weight:600;white-space:nowrap;cursor:default;
+}
+.status-chip.is-warning{background:#FDF6E7;color:var(--amber)}
+.status-chip.is-fresh{background:var(--blue-tint);color:var(--blue-700)}
+.status-chip[hidden]{display:none}
+
+.export-button{
+  display:inline-flex;align-items:center;gap:8px;
+  height:38px;padding:0 20px;
+  border:0;border-radius:var(--radius-pill);
+  background:var(--gradient-export);background-size:150% 100%;background-position:0% 50%;
+  color:#fff;font-family:Manrope,sans-serif;font-weight:700;font-size:14px;
+  box-shadow:0 2px 12px rgba(94,63,168,.30);
+  transition:background-position .45s var(--ease),box-shadow .25s ease,transform .12s ease,opacity .2s ease;
+}
+.export-button:hover:not(:disabled){background-position:100% 50%;box-shadow:0 4px 20px rgba(94,63,168,.38)}
+.export-button:active:not(:disabled){transform:translateY(1px)}
+.export-button:disabled{opacity:.6;cursor:progress}
+.export-button svg{flex:none}
+
+/* на средних экранах сдвиг уменьшается, чтобы строка не уходила за край */
+@media (max-width:1340px){
+  .tab-tree{--marker-gutter:64px;--row-capacity:4}
+}
+@media (max-width:900px){
+  .group-grid,.go-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .group-grid--head{display:none}
+  .group-grid--members .cell-label{display:block}
+}
+@media (max-width:1100px){
+  .tab-tree{--row-capacity:3}
+}
+@media (max-width:760px){
+  .tab-tree{--row-capacity:2}
+  #companyTabs{flex-wrap:wrap;justify-content:center}
+  #companyTabs > .tab{flex:1 1 100%}
+  .tab-pair{flex:1 1 100%;justify-content:center}
+  .tab--company.is-active,.tab--events.is-active{border-radius:14px}
+  /* на узком экране сдвигать строки некуда — перемычка становится
+     короткой вертикальной связкой по центру */
+  .tab-tree{--marker-gutter:0px}
+  .row-arrow{display:none}
+  .tab-row{transform:none !important}
+  .tab-tree.branch-left .tab-branch::before,
+  .tab-tree.branch-right .tab-branch::before{left:50%;right:auto;margin-left:-28px}
+}
+@media (max-width:600px){
+  .stage{padding:20px 14px 140px}
+  .search-field{height:54px;padding-left:16px}
+  #searchInput{font-size:16px}
+  .search-button{padding:0 20px;height:42px}
+  .hero{transform:translateY(16vh)}
+  .tab-tree{--row-capacity:1}
+  .action-bar{left:12px;right:12px;bottom:12px}
+  .action-bar .secondary-button,.action-bar .export-button{flex:1;justify-content:center}
+  .status-chip{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  .processing-ring::after{animation:spin 1.15s linear infinite !important}
+}
+
+</style>
+</head>
+<body>
+
+<main class="stage">
+
+  <!-- ====================== ПОИСК ====================== -->
+  <section class="hero">
+    <div class="page-title-wrap">
+      <div class="page-title-inner">
+        <h1 class="page-title">Лимитный модуль <em>АББ</em></h1>
+        <p class="page-subtitle">Поиск по названию компании или ИНН</p>
+      </div>
+    </div>
+
+    <div class="search-area">
+      <div class="search-field" id="searchField">
+        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>
+        </svg>
+        <input id="searchInput" type="text" inputmode="text" placeholder="Название компании или ИНН"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               role="combobox" aria-expanded="false" aria-controls="suggestionList" aria-autocomplete="list">
+        <button class="clear-button" id="clearButton" type="button" aria-label="Очистить">&times;</button>
+        <button class="search-button" id="searchButton" type="button" disabled>Поиск</button>
+      </div>
+      <div class="suggestions" id="suggestionList" role="listbox" aria-label="Похожие компании"></div>
+    </div>
+
+    <div class="search-hint" id="searchHint">Введите не менее 3 символов</div>
+  </section>
+
+  <!-- ====================== РЕЗУЛЬТАТ ====================== -->
+  <section class="result-panel" id="resultPanel" aria-live="polite">
+
+    <div class="processing" id="processingIndicator">
+      <div class="processing-ring"><span>Обработка</span></div>
+      <p id="processingNote">Запрашиваем данные из базы</p>
+    </div>
+
+    <div class="error-box" id="errorBox">
+      <div id="errorMessage"></div>
+      <button class="secondary-button" type="button" id="retryButton">Повторить</button>
+    </div>
+
+    <div class="tab-tree" id="tabTree" hidden>
+      <!-- подсказка о возможном сдвиге первой строки -->
+      <span class="row-arrow row-arrow--left" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg>
+      </span>
+      <span class="row-arrow row-arrow--right" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+      </span>
+
+      <!-- уровень 1: компания · ИНН · КПП · события -->
+      <div class="tab-level is-open" id="companyLevel">
+        <div class="tab-row" id="companyTabs"></div>
+      </div>
+
+      <!-- уровень 2: основная информация · лимиты · сублимиты · резервы -->
+      <div class="tab-level" id="sectionLevel">
+        <div class="tab-branch">
+          <div class="tab-row" id="sectionTabs"></div>
+        </div>
+      </div>
+
+      <!-- уровень 3: баланс · финрезультаты · коэффициенты -->
+      <div class="tab-level" id="groupLevel">
+        <div class="tab-branch">
+          <div class="tab-row" id="groupTabs"></div>
+        </div>
+      </div>
+
+      <div class="panel-content" id="panelContent"></div>
+    </div>
+  </section>
+
+  <!-- плавающая панель действий: следует за прокруткой -->
+  <div class="action-bar" id="actionBar" hidden>
+    <span class="status-chip" id="statusChip" hidden></span>
+    <button class="secondary-button" type="button" id="resetButton">Новый поиск</button>
+    <button class="export-button" type="button" id="exportButton">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/>
+      </svg>
+      Выгрузить в Excel
+    </button>
+  </div>
+</main>
+
+<script>
+/* Форматирование чисел и дат. Всё в ru-RU. */
+const Format = (() => {
+  const nf = (min, max) => new Intl.NumberFormat('ru-RU', {
+    minimumFractionDigits: min, maximumFractionDigits: max,
+  });
+
+  const na    = () => '<span class="no-data">—</span>';
+  const money = v => v == null ? na() : nf(0, 0).format(Math.round(v));
+  const pct   = v => v == null ? na() : nf(1, 1).format(v) + '<span class="unit">%</span>';
+  const ratio = v => v == null ? na() : nf(2, 2).format(v);
+  const rub   = v => v == null ? na() : nf(0, 0).format(Math.round(v)) + '<span class="unit">₽</span>';
+
+  /* 1 234 567 890 -> «1,23 млрд ₽» — для бейджей на вкладках */
+  const compact = v => {
+    if (v == null) return '—';
+    const abs = Math.abs(v);
+    if (abs >= 1e9) return nf(2, 2).format(v / 1e9) + ' млрд ₽';
+    if (abs >= 1e6) return nf(1, 1).format(v / 1e6) + ' млн ₽';
+    if (abs >= 1e3) return nf(0, 0).format(v / 1e3) + ' тыс. ₽';
+    return nf(0, 0).format(v) + ' ₽';
+  };
+
+  const byKind = (v, kind) =>
+    kind === 'pct' ? pct(v) : kind === 'ratio' ? ratio(v) : money(v);
+
+  const delta = (prev, cur) => {
+    if (prev == null || cur == null || !isFinite(prev) || prev === 0) return na();
+    const p = (cur - prev) / Math.abs(prev) * 100;
+    return `<span class="delta ${p >= 0 ? 'is-up' : 'is-down'}">${p >= 0 ? '+' : '−'}${nf(1, 1).format(Math.abs(p))}%</span>`;
+  };
+
+  const date = iso => iso ? new Date(iso).toLocaleDateString('ru-RU') : '—';
+
+  const escape = s => String(s).replace(/[&<>"]/g, m =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
+
+  const normalize = s => String(s).toLowerCase().replace(/[«»"'`.,]/g, '').replace(/ё/g, 'е').trim();
+
+  return { money, pct, ratio, rub, compact, byKind, delta, date, escape, na, normalize };
+})();
+
+</script>
+<script>
+/* ============================================================
+   Демо-данные. Используются, только если API недоступен
+   (например, файл открыт напрямую, без Docker).
+   В боевой сборке этот файл можно не подключать.
+   ============================================================ */
+const DemoData = (() => {
+  const COMPANIES = [
+    { id: 1,  name: 'Магнит',              inn: '2309085638', kpp: '230901001', industry: 'Розничная торговля' },
+    { id: 2,  name: 'Магнитогорский МК',   inn: '7414003633', kpp: '745501001', industry: 'Металлургия' },
+    { id: 3,  name: 'Мосэнерго',           inn: '7705035012', kpp: '770501001', industry: 'Электроэнергетика' },
+    { id: 4,  name: 'Московская биржа',    inn: '7702077840', kpp: '770201001', industry: 'Финансы' },
+    { id: 5,  name: 'Норильский никель',   inn: '8401005730', kpp: '840101001', industry: 'Металлургия' },
+    { id: 6,  name: 'Новатэк',             inn: '6316031581', kpp: '631601001', industry: 'Нефть и газ' },
+    { id: 7,  name: 'Роснефть',            inn: '7706107510', kpp: '770601001', industry: 'Нефть и газ' },
+    { id: 8,  name: 'Ростелеком',          inn: '7707049388', kpp: '784001001', industry: 'Телекоммуникации' },
+    { id: 9,  name: 'Северсталь',          inn: '3528000597', kpp: '352801001', industry: 'Металлургия' },
+    { id: 10, name: 'Сегежа Групп',        inn: '7714487093', kpp: '771401001', industry: 'Лесная промышленность' },
+    { id: 11, name: 'Сибур Холдинг',       inn: '7727547261', kpp: '772701001', industry: 'Химия и нефтехимия' },
+    { id: 12, name: 'Татнефть',            inn: '1644003838', kpp: '164401001', industry: 'Нефть и газ' },
+    { id: 13, name: 'Транснефть',          inn: '7706061801', kpp: '770601002', industry: 'Транспорт' },
+    { id: 14, name: 'Фосагро',             inn: '7736216869', kpp: '773601001', industry: 'Химия и нефтехимия' },
+    { id: 15, name: 'Аэрофлот',            inn: '7712040126', kpp: '771201001', industry: 'Авиаперевозки' },
+    { id: 16, name: 'Алроса',              inn: '1433000147', kpp: '143301001', industry: 'Добыча полезных ископаемых' },
+    { id: 17, name: 'Полюс',               inn: '2434000335', kpp: '243401001', industry: 'Добыча полезных ископаемых' },
+    { id: 18, name: 'Позитив Текнолоджиз', inn: '7718668887', kpp: '771801001', industry: 'ИТ и разработка ПО' },
+    { id: 19, name: 'Яндекс',              inn: '7736207543', kpp: '773601002', industry: 'ИТ и разработка ПО' },
+    { id: 20, name: 'ММК-Метиз',           inn: '7414002238', kpp: '741401001', industry: 'Металлургия' },
+    { id: 21, name: 'Балтийский терминал', inn: '7801567234', kpp: '780101001', industry: 'Транспорт' },
+    { id: 22, name: 'Агроальянс Юг',       inn: '2311456789', kpp: '231101001', industry: 'Сельское хозяйство' },
+    { id: 23, name: 'Стройпуть',           inn: '5407123456', kpp: '540701001', industry: 'Строительство' },
+    { id: 24, name: 'Дальресурс',          inn: '2540987654', kpp: '254001001', industry: 'Добыча полезных ископаемых' },
+    // длинные наименования — проверка ширины карточек верхней строки
+    { id: 25, name: 'Российские железные дороги', inn: '7708503727', kpp: '770801001', industry: 'Транспорт' },
+    { id: 26, name: 'Объединённая судостроительная корпорация', inn: '7838395215', kpp: '783801001', industry: 'Судостроение' },
+    { id: 27, name: 'Новолипецкий металлургический комбинат', inn: '4823006703', kpp: '482301001', industry: 'Металлургия' },
+    { id: 28, name: 'Межрегиональная распределительная сетевая компания Центра', inn: '6901067107', kpp: '690101001', industry: 'Электроэнергетика' },
+  ];
+
+  /* детерминированный ГПСЧ, чтобы одна компания всегда давала те же цифры */
+  const rng = seed => () => {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+
+  const search = query => {
+    const n = Format.normalize(query);
+    return COMPANIES
+      .map(c => ({ c, i: Format.normalize(c.name).indexOf(n), j: c.inn.indexOf(n) }))
+      .filter(x => x.i > -1 || x.j > -1)
+      .sort((a, b) => (a.i > -1 ? a.i : 99) - (b.i > -1 ? b.i : 99))
+      .slice(0, 8)
+      .map(x => x.c);
+  };
+
+  const indicators = id => {
+    const r = rng(id * 7919), years = [2021, 2022, 2023, 2024];
+    const scale = 8e6 * (0.2 + r() * 3);
+    const rev = [], cost = [], sell = [], assets = [], equity = [], lt = [], cash = [], inv = [], recv = [];
+    let base = scale;
+    years.forEach(() => {
+      base *= 0.94 + r() * 0.26;
+      rev.push(base);
+      cost.push(base * (0.60 + r() * 0.15));
+      sell.push(base * (0.05 + r() * 0.05));
+      const a = base * (0.8 + r() * 0.9);
+      assets.push(a);
+      equity.push(a * (0.34 + r() * 0.20));
+      lt.push(a * (0.10 + r() * 0.12));
+      cash.push(a * (0.04 + r() * 0.05));
+      inv.push(a * (0.08 + r() * 0.09));
+      recv.push(a * (0.12 + r() * 0.11));
+    });
+    const gross = rev.map((v, i) => v - cost[i]);
+    const op = gross.map((v, i) => v - sell[i]);
+    const pretax = op.map(v => v * 0.92);
+    const net = pretax.map(v => v * 0.8);
+    const cur = assets.map((a, i) => cash[i] + inv[i] + recv[i]);
+    const noncur = assets.map((a, i) => a - cur[i]);
+    const st = assets.map((a, i) => a - equity[i] - lt[i]);
+
+    return {
+      years, unit: 'тыс. ₽',
+      groups: [
+        { code: 'balance', title: 'Бухгалтерский баланс', rows: [
+          { label: 'Активы, всего', kind: 'money', values: assets },
+          { label: 'Внеоборотные активы', kind: 'money', values: noncur },
+          { label: 'Оборотные активы', kind: 'money', values: cur },
+          { label: 'Запасы', kind: 'money', values: inv },
+          { label: 'Дебиторская задолженность', kind: 'money', values: recv },
+          { label: 'Денежные средства и эквиваленты', kind: 'money', values: cash },
+          { label: 'Капитал и резервы', kind: 'money', values: equity },
+          { label: 'Долгосрочные обязательства', kind: 'money', values: lt },
+          { label: 'Краткосрочные обязательства', kind: 'money', values: st },
+        ]},
+        { code: 'results', title: 'Финансовые результаты', rows: [
+          { label: 'Выручка', kind: 'money', values: rev },
+          { label: 'Себестоимость продаж', kind: 'money', values: cost },
+          { label: 'Валовая прибыль', kind: 'money', values: gross },
+          { label: 'Коммерческие и управленческие расходы', kind: 'money', values: sell },
+          { label: 'Прибыль от продаж', kind: 'money', values: op },
+          { label: 'Прибыль до налогообложения', kind: 'money', values: pretax },
+          { label: 'Чистая прибыль', kind: 'money', values: net },
+        ]},
+        { code: 'ratios', title: 'Коэффициенты', rows: [
+          { label: 'Рентабельность продаж', kind: 'pct', values: net.map((v, i) => v / rev[i] * 100) },
+          { label: 'Рентабельность активов', kind: 'pct', values: net.map((v, i) => v / assets[i] * 100) },
+          { label: 'Рентабельность капитала', kind: 'pct', values: net.map((v, i) => v / equity[i] * 100) },
+          { label: 'Текущая ликвидность', kind: 'ratio', values: cur.map((v, i) => v / st[i]) },
+          { label: 'Коэффициент автономии', kind: 'ratio', values: equity.map((v, i) => v / assets[i]) },
+          { label: 'Долг / Чистая прибыль', kind: 'ratio', values: lt.map((v, i) => (v + st[i]) / net[i]) },
+        ]},
+      ],
+    };
+  };
+
+  const CORPORATE = ['Возобновляемая кредитная линия', 'Овердрафт', 'Банковские гарантии',
+                     'Аккредитивы', 'Торговое финансирование'];
+  const INVESTMENT = ['Синдицированный кредит', 'Проектное финансирование'];
+
+  const APPLICATIONS = [
+    ['Возобновляемая кредитная линия', 24, 'Ожидается решение кредитного комитета'],
+    ['Банковские гарантии', 12, 'Запрошены уточнения по обеспечению'],
+    ['Проектное финансирование', 60, 'На рассмотрении инвестиционного блока'],
+  ];
+
+  const limits = id => {
+    const r = rng(id * 104729);
+
+    const makeItems = (products, block) => products.map((product, i) => {
+      const limit_amount = 1e6 + r() * 999e6;
+      const used_amount = limit_amount * (0.15 + r() * 0.7);
+      const until = new Date();
+      until.setDate(until.getDate() + Math.round(90 + r() * 640));
+      return {
+        id: id * 10 + i, block, product, status: 'active', currency: 'RUB',
+        limit_amount, used_amount, available: limit_amount - used_amount,
+        total_limit: limit_amount * 1.15, utilization_cap_pct: 85,
+        valid_until: until.toISOString().slice(0, 10),
+      };
+    }).sort((a, b) => b.limit_amount - a.limit_amount);
+
+    const corporate = makeItems(CORPORATE, 'corporate');
+    const investment = makeItems(INVESTMENT, 'investment');
+    const items = [...corporate, ...investment];
+    const total = items.reduce((sum, x) => sum + x.limit_amount, 0);
+    const used = items.reduce((sum, x) => sum + x.used_amount, 0);
+
+    // заявки есть не у каждого клиента — как и в базе
+    const applications = id % 3 === 2
+      ? APPLICATIONS.map(([product, term, comment], i) => {
+          const created = new Date();
+          created.setDate(created.getDate() - (id * 3 % 45));
+          return {
+            id: id * 100 + i, product, status: 'На рассмотрении', currency: 'RUB',
+            term_months: term, amount: 50e6 + (id * 97 % 450) * 1e6, comment,
+            created_at: created.toISOString().slice(0, 10),
+          };
+        })
+      : [];
+
+    return {
+      blocks: [
+        { code: 'corporate', title: 'Корпоративный блок', items: corporate },
+        { code: 'investment', title: 'Инвестиционный блок', items: investment },
+      ],
+      unified: { sublimit: total, utilized: used, available: total - used },
+      applications,
+      items, total, used,
+    };
+  };
+  const sublimits = id => {
+    const r = rng(id * 15485863);
+    const shares = [['Транш до 6 месяцев', 0.25], ['Транш до 12 месяцев', 0.35], ['Транш свыше 12 месяцев', 0.20]];
+    const items = [];
+    limits(id).items.forEach(l => shares.forEach(([name, share]) => {
+      const amount = l.limit_amount * share;
+      const used_amount = amount * (0.1 + r() * 0.75);
+      items.push({
+        id: items.length + 1, product: l.product, name,
+        amount, used_amount, available: amount - used_amount,
+        tenor_months: [3, 6, 12, 18, 24, 36][Math.floor(r() * 6)],
+      });
+    }));
+    return {
+      items,
+      total: items.reduce((s, x) => s + x.amount, 0),
+      used: items.reduce((s, x) => s + x.used_amount, 0),
+    };
+  };
+
+  const reserves = id => {
+    const source = limits(id).items
+      .slice()
+      .sort((a, b) => b.limit_amount - a.limit_amount)
+      .slice(0, 3);
+
+    const positions = (standard, base) => source.map((item, i) => ({
+      id: id * 100 + i, standard,
+      product: item.product,
+      currency: item.currency,
+      limit_amount: item.limit_amount,
+      term_months: [6, 12, 18, 24, 36][(id + i) % 5],
+      reserve_amount: item.limit_amount * (base + ((id + i) % 8) / 100),
+      calc_date: new Date().toISOString().slice(0, 10),
+    }));
+
+    const rsbu = positions('rsbu', 0.03);
+    const ifrs = positions('ifrs', 0.05);
+    const sum = list => list.reduce((acc, x) => acc + x.reserve_amount, 0);
+
+    return {
+      blocks: [
+        { code: 'rsbu', title: 'Резервы РСБУ', items: rsbu, total: sum(rsbu) },
+        { code: 'ifrs', title: 'Резервы МСФО', items: ifrs, total: sum(ifrs) },
+      ],
+      items: [...rsbu, ...ifrs],
+      total: sum(rsbu) + sum(ifrs),
+    };
+  };
+
+  const byId = id => COMPANIES.find(c => c.id === id);
+
+  /* ---------- группы компаний ---------- */
+  const GROUPS = [
+    { id: 1, name: 'ГК «Северная сталь»',  members: [9, 2, 20] },
+    { id: 2, name: 'ГК «Энергоресурс»',    members: [3, 7, 12, 13] },
+    { id: 3, name: 'ГК «Технополис»',      members: [19, 18, 8] },
+    { id: 4, name: 'ГК «Полярный ресурс»', members: [16, 17, 14, 5] },
+  ];
+
+  const ADDRESSES = [
+    '101000, г. Москва, ул. Мясницкая, д. 12, стр. 1',
+    '190000, г. Санкт-Петербург, наб. реки Мойки, д. 58',
+    '620014, г. Екатеринбург, ул. Малышева, д. 51',
+    '630007, г. Новосибирск, ул. Советская, д. 5',
+    '350000, г. Краснодар, ул. Красная, д. 176',
+    '455000, г. Магнитогорск, ул. Кирова, д. 93',
+    '162600, г. Череповец, ул. Мира, д. 30',
+    '423450, г. Альметьевск, ул. Ленина, д. 75',
+  ];
+
+  const OKVED = {
+    'Металлургия': '24.10', 'Нефть и газ': '06.10', 'Розничная торговля': '47.11',
+    'ИТ и разработка ПО': '62.01', 'Электроэнергетика': '35.11', 'Транспорт': '49.50',
+    'Финансы': '64.19', 'Химия и нефтехимия': '20.15', 'Авиаперевозки': '51.10',
+    'Лесная промышленность': '16.10', 'Добыча полезных ископаемых': '07.10',
+  };
+
+  const memberSublimit = id => {
+    const amount = 150000000 + (id * 37117 % 850000000);
+    const used = amount * (0.2 + (id * 13 % 60) / 100);
+    return { sublimit_amount: amount, utilized_amount: used, available_amount: amount - used };
+  };
+
+  function groupOf(companyId) {
+    const found = GROUPS.find(g => g.members.includes(companyId));
+    if (!found) return null;
+
+    const members = found.members.map(memberId => {
+      const company = byId(memberId);
+      return { id: memberId, name: company.name, inn: company.inn, ...memberSublimit(memberId) };
+    }).sort((a, b) => b.sublimit_amount - a.sublimit_amount);
+
+    const unified = members.reduce((sum, m) => sum + m.sublimit_amount, 0);
+    const utilized = members.reduce((sum, m) => sum + m.utilized_amount, 0);
+    return {
+      id: found.id, name: found.name,
+      unified_limit: unified, utilized_limit: utilized,
+      available_limit: unified - utilized,
+      total_limit: unified * 1.15,
+      utilization_cap_pct: 85,
+      members,
+    };
+  }
+
+  function profile(id) {
+    const company = byId(id);
+    return {
+      ...company,
+      ogrn: '1' + String(1000000 + id * 7919).padStart(12, '0').slice(-12),
+      address: ADDRESSES[id % ADDRESSES.length],
+      okved: OKVED[company.industry] || '46.90',
+      okved_name: company.industry,
+      group: groupOf(id),
+    };
+  }
+
+  return { search, byId, indicators, limits, sublimits, reserves, profile };
+})();
+
+</script>
+<script>
+/* ============================================================
+   Клиент API. Единственное место, которое знает про бэкенд.
+
+   GET /api/companies?q=&limit=
+   GET /api/companies/{id}
+   GET /api/companies/{id}/indicators
+   GET /api/companies/{id}/limits
+   GET /api/companies/{id}/sublimits
+   GET /api/companies/{id}/reserves
+   ============================================================ */
+const API = (() => {
+  const BASE = (window.APP_CONFIG && window.APP_CONFIG.apiBase) || '/api';
+  let offline = false; // переключается в true, если бэкенд не отвечает
+
+  async function call(path) {
+    const res = await fetch(BASE + path, { headers: { Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
+
+  /* Если бэкенда нет — работаем на демо-данных, чтобы прототип
+     можно было открыть без Docker. В проде удалите fallback. */
+  async function withFallback(path, mockFn) {
+    if (offline) return mockFn();
+    try {
+      return await call(path);
+    } catch (e) {
+      if (typeof DemoData === 'undefined') throw e;
+      offline = true;
+      console.info(
+        `[АББ] Бэкенд не отвечает по ${BASE} (${e.message}) — интерфейс переключён на демо-данные. ` +
+        'Для работы с реальной базой запустите docker compose up.'
+      );
+      return mockFn();
+    }
+  }
+
+  return {
+    isOffline: () => offline,
+    meta: () => call('/meta').catch(() => null),
+    searchCompanies: q =>
+      withFallback(`/companies?q=${encodeURIComponent(q)}&limit=8`, () => DemoData.search(q)),
+    company: id => withFallback(`/companies/${id}`, () => DemoData.byId(id)),
+    profile: id => withFallback(`/companies/${id}/profile`, () => DemoData.profile(id)),
+    indicators: id => withFallback(`/companies/${id}/indicators`, () => DemoData.indicators(id)),
+    limits: id => withFallback(`/companies/${id}/limits`, () => DemoData.limits(id)),
+    sublimits: id => withFallback(`/companies/${id}/sublimits`, () => DemoData.sublimits(id)),
+    reserves: id => withFallback(`/companies/${id}/reserves`, () => DemoData.reserves(id)),
+  };
+})();
+
+</script>
+<script>
+/* ============================================================
+   Минимальный генератор XLSX без внешних библиотек.
+
+   Пишет ZIP методом STORE (без сжатия) — ExcelExport, LibreOffice и
+   Google Sheets такой файл открывают штатно. Понадобилось, чтобы
+   не тянуть в проект 900 КБ SheetJS с CDN: в закрытом контуре
+   CDN обычно недоступен.
+
+   XlsxWriter.build([{name, rows, cols, freeze}]) -> Uint8Array
+
+   Ячейка: число | строка | null | {v, s}
+   Стили (s): 1 шапка · 2 деньги · 3 два знака · 4 один знак · 5 заголовок · 6 жирный
+   ============================================================ */
+const XlsxWriter = (() => {
+  const enc = new TextEncoder();
+
+  /* ---------- CRC32 ---------- */
+  const CRC = (() => {
+    const t = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+      t[i] = c >>> 0;
+    }
+    return t;
+  })();
+
+  const crc32 = buf => {
+    let c = 0xFFFFFFFF;
+    for (let i = 0; i < buf.length; i++) c = CRC[(c ^ buf[i]) & 0xFF] ^ (c >>> 8);
+    return (c ^ 0xFFFFFFFF) >>> 0;
+  };
+
+  /* ---------- ZIP (store) ---------- */
+  function zip(files) {
+    const parts = [], central = [];
+    let offset = 0;
+
+    const now = new Date();
+    const time = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() / 2)) & 0xFFFF;
+    const date = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+
+    for (const f of files) {
+      const name = enc.encode(f.name);          // имена только ASCII
+      const data = enc.encode(f.data);
+      const crc = crc32(data);
+
+      const local = new Uint8Array(30 + name.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034B50, true);
+      lv.setUint16(4, 20, true);                // version needed
+      lv.setUint16(6, 0, true);                 // flags
+      lv.setUint16(8, 0, true);                 // method: store
+      lv.setUint16(10, time, true);
+      lv.setUint16(12, date, true);
+      lv.setUint32(14, crc, true);
+      lv.setUint32(18, data.length, true);
+      lv.setUint32(22, data.length, true);
+      lv.setUint16(26, name.length, true);
+      local.set(name, 30);
+
+      parts.push(local, data);
+
+      const cen = new Uint8Array(46 + name.length);
+      const cv = new DataView(cen.buffer);
+      cv.setUint32(0, 0x02014B50, true);
+      cv.setUint16(4, 20, true);                // version made by
+      cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0, true);
+      cv.setUint16(10, 0, true);
+      cv.setUint16(12, time, true);
+      cv.setUint16(14, date, true);
+      cv.setUint32(16, crc, true);
+      cv.setUint32(20, data.length, true);
+      cv.setUint32(24, data.length, true);
+      cv.setUint16(28, name.length, true);
+      cv.setUint32(42, offset, true);
+      cen.set(name, 46);
+      central.push(cen);
+
+      offset += local.length + data.length;
+    }
+
+    const cdSize = central.reduce((s, c) => s + c.length, 0);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054B50, true);
+    ev.setUint16(8, files.length, true);
+    ev.setUint16(10, files.length, true);
+    ev.setUint32(12, cdSize, true);
+    ev.setUint32(16, offset, true);
+
+    const all = [...parts, ...central, end];
+    const total = all.reduce((s, p) => s + p.length, 0);
+    const out = new Uint8Array(total);
+    let p = 0;
+    for (const chunk of all) { out.set(chunk, p); p += chunk.length; }
+    return out;
+  }
+
+  /* ---------- XML ---------- */
+  const esc = s => String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+
+  const colName = i => {
+    let s = '';
+    for (i++; i > 0; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s;
+    return s;
+  };
+
+  function sheetXml(sheet) {
+    const cols = sheet.cols
+      ? `<cols>${sheet.cols.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>`
+      : '';
+
+    const pane = sheet.freeze
+      ? `<pane ySplit="${sheet.freeze}" topLeftCell="A${sheet.freeze + 1}" activePane="bottomLeft" state="frozen"/>`
+      : '';
+
+    const rows = sheet.rows.map((row, r) => {
+      const cells = row.map((cell, c) => {
+        if (cell === null || cell === undefined || cell === '') return '';
+        const obj = typeof cell === 'object' ? cell : { v: cell };
+        const ref = colName(c) + (r + 1);
+        const s = obj.s ? ` s="${obj.s}"` : '';
+        return typeof obj.v === 'number' && isFinite(obj.v)
+          ? `<c r="${ref}"${s}><v>${obj.v}</v></c>`
+          : `<c r="${ref}"${s} t="inlineStr"><is><t xml:space="preserve">${esc(obj.v)}</t></is></c>`;
+      }).join('');
+      return `<row r="${r + 1}">${cells}</row>`;
+    }).join('');
+
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0">${pane}</sheetView></sheetViews>${cols}<sheetData>${rows}</sheetData></worksheet>`;
+  }
+
+  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="3"><numFmt numFmtId="164" formatCode="#,##0"/><numFmt numFmtId="165" formatCode="#,##0.00"/><numFmt numFmtId="166" formatCode="0.0"/></numFmts>
+<fonts count="3">
+<font><sz val="11"/><name val="Calibri"/></font>
+<font><b/><sz val="11"/><name val="Calibri"/><color rgb="FF123A63"/></font>
+<font><b/><sz val="13"/><name val="Calibri"/><color rgb="FF123A63"/></font>
+</fonts>
+<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDCE9F5"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="thin"><color rgb="FF9FBBD6"/></bottom><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="7">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>
+<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="166" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
+<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+
+  /* ExcelExport не принимает в имени листа : \ / ? * [ ] и больше 31 символа */
+  const safeName = (n, i) =>
+    (String(n).replace(/[:\\\/?*\[\]]/g, ' ').trim().slice(0, 31)) || `Лист${i + 1}`;
+
+  function build(sheets) {
+    const names = [];
+    sheets.forEach((s, i) => {
+      let n = safeName(s.name, i), k = 2;
+      while (names.includes(n)) n = safeName(s.name, i).slice(0, 28) + ' ' + k++;
+      names.push(n);
+    });
+
+    const files = [
+      { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
+
+      { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+
+      { name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${names.map((n, i) => `<sheet name="${esc(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>` },
+
+      { name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+
+      { name: 'xl/styles.xml', data: STYLES },
+
+      ...sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: sheetXml(s) })),
+    ];
+
+    return zip(files);
+  }
+
+  return { build };
+})();
+
+if (typeof module !== 'undefined') module.exports = { XlsxWriter };
+
+</script>
+<script>
+/* ============================================================
+   Выгрузка в ExcelExport. Каждая ветка дерева — отдельный лист:
+
+   Компания · Баланс · Финрезультаты · Коэффициенты ·
+   Лимиты · Сублимиты · Резервы
+
+   Выгружаются все данные, загруженные по компании, независимо
+   от того, какие вкладки были открыты на экране.
+   ============================================================ */
+const ExcelExport = (() => {
+  const H = 1;   // стиль шапки
+  const M = 2;   // #,##0
+  const N2 = 3;  // #,##0.00
+  const N1 = 4;  // 0.0
+  const T = 5;   // заголовок
+  const B = 6;   // жирный
+
+  const h = v => ({ v, s: H });
+  const money = v => v == null ? '' : { v: Math.round(v), s: M };
+  const num2 = v => v == null ? '' : { v: Math.round(v * 100) / 100, s: N2 };
+  const num1 = v => v == null ? '' : { v: Math.round(v * 10) / 10, s: N1 };
+
+  const pctChange = (prev, cur) =>
+    prev == null || cur == null || !prev ? '' : num1((cur - prev) / Math.abs(prev) * 100);
+
+  /* ---------- Лист «Компания» ---------- */
+  function companySheet(c, data, offline) {
+    const lim = data.limits, sub = data.sublimits, res = data.reserves;
+    const profile = data.profile || {};
+    return {
+      name: 'Компания',
+      cols: [34, 56],
+      rows: [
+        [{ v: 'Лимитный модуль АББ', s: T }],
+        [],
+        [{ v: 'Наименование', s: B }, c.name],
+        [{ v: 'ИНН', s: B }, c.inn],
+        [{ v: 'КПП', s: B }, c.kpp || '—'],
+        [{ v: 'ОГРН', s: B }, profile.ogrn || '—'],
+        [{ v: 'Адрес', s: B }, profile.address || '—'],
+        [{ v: 'ОКВЭД', s: B }, profile.okved ? `${profile.okved} — ${profile.okved_name || ''}` : '—'],
+        [{ v: 'Группа компаний', s: B }, profile.group ? profile.group.name : 'Отсутствует'],
+        [{ v: 'Отрасль', s: B }, c.industry || '—'],
+        [],
+        [{ v: 'Установленные лимиты, ₽', s: B }, money(lim.total)],
+        [{ v: 'Использовано, ₽', s: B }, money(lim.used)],
+        [{ v: 'Свободный остаток, ₽', s: B }, money(lim.total - lim.used)],
+        [{ v: 'Сумма сублимитов, ₽', s: B }, money(sub.total)],
+        [{ v: 'Сформировано резервов, ₽', s: B }, money(res.total)],
+        [],
+        [{ v: 'Дата выгрузки', s: B }, new Date().toLocaleString('ru-RU')],
+        [{ v: 'Источник данных', s: B }, offline ? 'демо-данные (API недоступен)' : 'база данных'],
+      ],
+    };
+  }
+
+  /* ---------- Листы «Баланс» / «Финрезультаты» / «Коэффициенты» ---------- */
+  function indicatorSheet(ind, code, name) {
+    const g = ind.groups.find(x => x.code === code);
+    if (!g) return null;
+    const yrs = ind.years;
+    const last = yrs.length - 1;
+
+    const header = [h('Показатель'), ...yrs.map(y => h(String(y))), h(`Δ ${yrs[last]}/${yrs[last - 1]}, %`)];
+
+    const rows = g.rows.map(r => [
+      r.label,
+      ...r.values.map(v => r.kind === 'money' ? money(v) : r.kind === 'pct' ? num1(v) : num2(v)),
+      pctChange(r.values[last - 1], r.values[last]),
+    ]);
+
+    const unit = code === 'ratios' ? '' : ' (тыс. ₽)';
+    return {
+      name,
+      freeze: 3,
+      cols: [46, 16, 16, 16, 16, 14],
+      rows: [[{ v: g.title + unit, s: T }], [], header, ...rows],
+    };
+  }
+
+  /* ---------- Лист «Лимиты» ---------- */
+  const STATUS_TITLES = { active: 'Активный', closed: 'Закрыт', suspended: 'Приостановлен' };
+
+  function limitsSheet(d) {
+    const rows = [];
+    (d.blocks || []).forEach(block => {
+      rows.push([]);
+      rows.push([{ v: block.title, s: B }]);
+      rows.push([h('Тип лимита'), h('Статус'), h('Валюта'), h('Сумма лимита'),
+                 h('Утилизация'), h('Доступный остаток'), h('Совокупный лимит'),
+                 h('«Крышка», %'), h('Действует до')]);
+      block.items.forEach(item => rows.push([
+        item.product, STATUS_TITLES[item.status] || item.status, item.currency,
+        money(item.limit_amount), money(item.used_amount), money(item.available),
+        money(item.total_limit), num1(item.utilization_cap_pct), item.valid_until || '',
+      ]));
+    });
+
+    const unified = d.unified || { sublimit: d.total, utilized: d.used, available: d.total - d.used };
+    rows.push([]);
+    rows.push([{ v: 'Единый сублимит', s: B }]);
+    rows.push([{ v: 'Единый сублимит, ₽', s: B }, money(unified.sublimit)]);
+    rows.push([{ v: 'Единый доступный сублимит, ₽', s: B }, money(unified.available)]);
+    rows.push([{ v: 'Единый утилизированный сублимит, ₽', s: B }, money(unified.utilized)]);
+
+    return {
+      name: 'Лимиты',
+      cols: [38, 16, 10, 18, 18, 18, 18, 12, 14],
+      rows: [[{ v: 'Установленные лимиты, ₽', s: T }], ...rows],
+    };
+  }
+
+  /* ---------- Лист «Заявки на рассмотрении» ---------- */
+  function applicationsSheet(applications) {
+    if (!applications || !applications.length) return null;
+    return {
+      name: 'Заявки на рассмотрении',
+      freeze: 3,
+      cols: [38, 20, 10, 14, 20, 46],
+      rows: [
+        [{ v: 'Заявки на рассмотрении', s: T }], [],
+        [h('Тип лимита'), h('Статус лимита'), h('Валюта'), h('Срок, мес.'),
+         h('Запрошенная сумма'), h('Комментарии')],
+        ...applications.map(item => [
+          item.product, item.status, item.currency, item.term_months,
+          money(item.amount), item.comment || '',
+        ]),
+      ],
+    };
+  }
+
+  /* ---------- Лист «Сублимиты» ---------- */
+  function sublimitsSheet(d) {
+    const rows = d.items.map(x => [
+      x.product, x.name, money(x.amount), money(x.used_amount), money(x.available),
+      x.tenor_months, num1(x.used_amount / x.amount * 100),
+    ]);
+    return {
+      name: 'Сублимиты',
+      freeze: 3,
+      cols: [38, 26, 18, 18, 18, 12, 14],
+      rows: [
+        [{ v: 'Сублимиты, ₽', s: T }], [],
+        [h('Продукт'), h('Сублимит'), h('Сумма'), h('Использовано'), h('Доступно'), h('Срок, мес.'), h('Утилизация, %')],
+        ...rows,
+        [],
+        [{ v: 'Итого', s: B }, '', money(d.total), money(d.used), money(d.total - d.used)],
+      ],
+    };
+  }
+
+  /* ---------- Лист «Группа компаний» ---------- */
+  function groupSheet(group) {
+    if (!group) return null;
+    const rows = group.members.map(member => [
+      member.name, member.inn,
+      money(member.sublimit_amount), money(member.available_amount), money(member.utilized_amount),
+    ]);
+    return {
+      name: 'Группа компаний',
+      freeze: 10,
+      cols: [40, 18, 26, 26, 30],
+      rows: [
+        [{ v: group.name, s: T }], [],
+        [{ v: 'Единый лимит', s: B }],
+        [{ v: 'Сумма единого лимита, ₽', s: B }, money(group.unified_limit)],
+        [{ v: 'Единый доступный лимит, ₽', s: B }, money(group.available_limit)],
+        [{ v: 'Единый утилизированный лимит, ₽', s: B }, money(group.utilized_limit)],
+        [{ v: 'Совокупный лимит, ₽', s: B }, money(group.total_limit)],
+        [{ v: '«Крышка» по утилизации, %', s: B }, num1(group.utilization_cap_pct)],
+        [],
+        [h('Наименование клиента'), h('ИНН'), h('Сумма единого сублимита'),
+         h('Единый доступный сублимит'), h('Единый утилизированный сублимит')],
+        ...rows,
+      ],
+    };
+  }
+
+  /* ---------- Лист «Информация о резервах» ---------- */
+  function reservesSheet(d) {
+    const rows = [];
+    (d.blocks || []).forEach(block => {
+      rows.push([]);
+      rows.push([{ v: `${block.title} — ${Math.round(block.total)} ₽`, s: B }]);
+      rows.push([h('Название продукта'), h('Валюта лимита'), h('Сумма лимита'),
+                 h('Срок лимита, мес.'), h('Сумма резерва'), h('Ставка, %')]);
+      block.items.forEach(item => rows.push([
+        item.product, item.currency, money(item.limit_amount),
+        item.term_months, money(item.reserve_amount),
+        num2(item.limit_amount ? item.reserve_amount / item.limit_amount * 100 : 0),
+      ]));
+    });
+
+    return {
+      name: 'Информация о резервах',
+      cols: [40, 16, 20, 18, 20, 12],
+      rows: [[{ v: 'Информация о резервах, ₽', s: T }], ...rows,
+             [], [{ v: 'Итого сформировано, ₽', s: B }, money(d.total)]],
+    };
+  }
+
+  /* ---------- сборка и скачивание ---------- */
+  function build(company, data, offline) {
+    return XlsxWriter.build([
+      companySheet(company, data, offline),
+      groupSheet(data.profile && data.profile.group),
+      indicatorSheet(data.indicators, 'balance', 'Баланс'),
+      indicatorSheet(data.indicators, 'results', 'Финрезультаты'),
+      indicatorSheet(data.indicators, 'ratios', 'Коэффициенты'),
+      limitsSheet(data.limits),
+      applicationsSheet(data.limits.applications),
+      sublimitsSheet(data.sublimits),
+      reservesSheet(data.reserves),
+    ].filter(Boolean));
+  }
+
+  function download(company, data, offline) {
+    const bytes = build(company, data, offline);
+    const blob = new Blob([bytes], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `АББ_${company.inn}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  return { build, download };
+})();
+
+if (typeof module !== 'undefined') module.exports = { ExcelExport };
+
+</script>
+<script>
+/* ============================================================
+   События: отклонения, на которые стоит обратить внимание.
+
+   Считаются на уже загруженных данных компании — отдельный запрос
+   к базе не нужен. Когда правила станут настраиваемыми (пороги на
+   отрасль, веса, история решений), их место — на бэкенде.
+
+   Events.detect({indicators, limits, sublimits, reserves}) -> [событие]
+
+   Событие: { level, title, detail, source, period }
+   level: critical | warning | positive | info
+   ============================================================ */
+const Events = (() => {
+
+  /* Для каких показателей рост — это хорошо, а для каких — тревожный сигнал */
+  const DIRECTION = {
+    'Выручка': 'up-good',
+    'Чистая прибыль': 'up-good',
+    'Прибыль от продаж': 'up-good',
+    'Валовая прибыль': 'up-good',
+    'Прибыль до налогообложения': 'up-good',
+    'Денежные средства и эквиваленты': 'up-good',
+    'Капитал и резервы': 'up-good',
+    'Активы, всего': 'up-good',
+    'Оборотные активы': 'up-good',
+    'Краткосрочные обязательства': 'up-bad',
+    'Долгосрочные обязательства': 'up-bad',
+    'Себестоимость продаж': 'up-bad',
+    'Дебиторская задолженность': 'up-bad',
+    'Коммерческие и управленческие расходы': 'up-bad',
+  };
+
+  /* Пороговые значения коэффициентов */
+  const RATIO_RULES = {
+    'Текущая ликвидность': {
+      min: 1.0, level: 'critical',
+      message: v => `Текущая ликвидность ${fmt(v)} — оборотных активов не хватает на покрытие краткосрочных обязательств`,
+    },
+    'Коэффициент автономии': {
+      min: 0.3, level: 'warning',
+      message: v => `Коэффициент автономии ${fmt(v)} — доля собственных средств ниже 30%`,
+    },
+    'Рентабельность продаж': {
+      min: 0, level: 'critical',
+      message: v => `Рентабельность продаж ${fmt(v)}% — деятельность убыточна`,
+    },
+    'Долг / Чистая прибыль': {
+      max: 5, level: 'warning',
+      message: v => `Долговая нагрузка ${fmt(v)} годовых прибылей — обслуживание долга под давлением`,
+    },
+  };
+
+  const SIGNIFICANT = 25;   // % отклонения, с которого показатель попадает в события
+  const SEVERE = 50;        // % отклонения, считающегося резким
+
+  /* События строятся ТОЛЬКО по текущему периоду: последний год в отчётности
+     сравнивается с предыдущим и с медианой всей предыдущей истории.
+     Отклонения между прошлыми годами уже отработаны и в список не попадают.
+     Когда появятся квартальные и месячные данные, «текущим периодом» станет
+     последний доступный срез — логика сравнения не изменится. */
+
+  const fmt = v => Number(v).toFixed(2).replace('.', ',');
+  const pct = v => Math.abs(v).toFixed(1).replace('.', ',');
+
+  /* ---------- медиана предыдущих периодов ----------
+     Сравнение с одним прошлым годом даёт ложные срабатывания, когда
+     тот год сам был выбросом. Медиана всей истории устойчивее. */
+  function median(values) {
+    const clean = values.filter(v => typeof v === 'number' && isFinite(v)).sort((a, b) => a - b);
+    if (!clean.length) return null;
+    const mid = Math.floor(clean.length / 2);
+    return clean.length % 2 ? clean[mid] : (clean[mid - 1] + clean[mid]) / 2;
+  }
+
+  /* ---------- отклонения в показателях ---------- */
+  function fromIndicators(data) {
+    const found = [];
+    const years = data.years;
+    if (!years || years.length < 2) return found;
+
+    const lastYear = years[years.length - 1];
+    const prevYear = years[years.length - 2];
+
+    data.groups.forEach(group => {
+      group.rows.forEach(row => {
+        const values = row.values;
+        const current = values[values.length - 1];
+        const previous = values[values.length - 2];
+
+        // --- пороги для коэффициентов
+        const rule = RATIO_RULES[row.label];
+        if (rule && typeof current === 'number') {
+          const broken = (rule.min !== undefined && current < rule.min)
+                      || (rule.max !== undefined && current > rule.max);
+          if (broken) {
+            found.push({
+              level: rule.level,
+              title: row.label,
+              detail: rule.message(current),
+              source: group.title,
+              period: String(lastYear),
+              weight: rule.level === 'critical' ? 100 : 70,
+            });
+          }
+        }
+
+        // --- резкие изменения год к году
+        if (row.kind !== 'money') return;
+        if (typeof current !== 'number' || typeof previous !== 'number' || previous === 0) return;
+
+        const changeYoY = (current - previous) / Math.abs(previous) * 100;
+        if (Math.abs(changeYoY) < SIGNIFICANT) return;
+
+        const base = median(values.slice(0, -1));
+        const changeVsHistory = base ? (current - base) / Math.abs(base) * 100 : changeYoY;
+
+        const direction = DIRECTION[row.label] || 'up-good';
+        const rising = changeYoY > 0;
+        const good = (direction === 'up-good') === rising;
+        const severe = Math.abs(changeYoY) >= SEVERE;
+
+        found.push({
+          level: good ? 'positive' : (severe ? 'critical' : 'warning'),
+          title: `${row.label}: ${rising ? 'рост' : 'снижение'} на ${pct(changeYoY)}%`,
+          detail: `${prevYear} → ${lastYear}: ${Format.money(previous)} → ${Format.money(current)} тыс. ₽` +
+                  (base ? `. Отклонение от медианы за ${years[0]}–${prevYear}: ${changeVsHistory > 0 ? '+' : '−'}${pct(changeVsHistory)}%` : ''),
+          source: group.title,
+          period: `${prevYear} → ${lastYear}`,
+          weight: Math.min(Math.abs(changeYoY), 99) + (good ? 0 : 20),
+        });
+      });
+    });
+
+    return found;
+  }
+
+  /* ---------- лимиты: утилизация и сроки ---------- */
+  function fromLimits(data) {
+    const found = [];
+    const soonDays = 90;
+    const now = new Date();
+
+    data.items.forEach(item => {
+      const used = item.limit_amount ? item.used_amount / item.limit_amount * 100 : 0;
+
+      if (used >= 100) {
+        found.push({
+          level: 'critical', title: `${item.product}: лимит выбран полностью`,
+          detail: `Использовано ${Format.compact(item.used_amount)} из ${Format.compact(item.limit_amount)}`,
+          source: 'Лимиты', period: 'текущий', weight: 110,
+        });
+      } else if (used >= 90) {
+        found.push({
+          level: 'warning', title: `${item.product}: утилизация ${used.toFixed(1).replace('.', ',')}%`,
+          detail: `Свободный остаток ${Format.compact(item.available)}`,
+          source: 'Лимиты', period: 'текущий', weight: 80,
+        });
+      }
+
+      if (item.valid_until) {
+        const days = Math.round((new Date(item.valid_until) - now) / 86400000);
+        if (days >= 0 && days <= soonDays) {
+          found.push({
+            level: 'warning', title: `${item.product}: срок действия истекает`,
+            detail: `Осталось ${days} дн. — до ${Format.date(item.valid_until)}`,
+            source: 'Лимиты', period: Format.date(item.valid_until), weight: 85,
+          });
+        }
+      }
+    });
+
+    return found;
+  }
+
+  /* ---------- резервы ----------
+     Сигнал — высокая ставка резервирования: отношение суммы резерва
+     к сумме лимита. По МСФО она выше по определению, поэтому порог
+     для каждого стандарта свой. */
+  const RESERVE_THRESHOLD = { rsbu: 7, ifrs: 9 };
+
+  function fromReserves(data) {
+    const items = data.items || [];
+    return items
+      .map(item => ({
+        item,
+        rate: item.limit_amount ? item.reserve_amount / item.limit_amount * 100 : 0,
+      }))
+      .filter(({ item, rate }) => rate >= (RESERVE_THRESHOLD[item.standard] || 10))
+      .map(({ item, rate }) => ({
+        level: 'warning',
+        title: `Повышенная ставка резервирования: ${rate.toFixed(2).replace('.', ',')}%`,
+        detail: `${item.product} — резерв ${Format.compact(item.reserve_amount)} ` +
+                `при лимите ${Format.compact(item.limit_amount)}`,
+        source: item.standard === 'ifrs' ? 'Резервы МСФО' : 'Резервы РСБУ',
+        period: Format.date(item.calc_date),
+        weight: 70 + rate,
+      }));
+  }
+
+  /* ---------- сборка ---------- */
+  function detect(data) {
+    const all = [
+      ...fromIndicators(data.indicators),
+      ...fromLimits(data.limits),
+      ...fromReserves(data.reserves),
+    ];
+    // сначала самое важное; вес учитывает и величину отклонения, и знак
+    const rank = { critical: 3, warning: 2, positive: 1, info: 0 };
+    all.sort((a, b) => rank[b.level] - rank[a.level] || b.weight - a.weight);
+    return all;
+  }
+
+  const countBy = (list, level) => list.filter(event => event.level === level).length;
+
+  return { detect, countBy };
+})();
+
+</script>
+<script>
+/* ============================================================
+   Рендер таблиц. Каждая функция возвращает HTML-строку.
+   ============================================================ */
+const TableViews = (() => {
+
+  const head = (title, meta) =>
+    `<div class="content-head"><h2>${Format.escape(title)}</h2>${meta ? `<span class="content-meta">${meta}</span>` : ''}</div>`;
+
+  const card = (k, v, accent) =>
+    `<div class="card${accent ? ' is-accent' : ''}"><div class="card-key">${k}</div><div class="card-value">${v}</div></div>`;
+
+  const usageBar = (used, total) => {
+    const p = total ? Math.min(100, used / total * 100) : 0;
+    return `<div class="usage-bar"><i style="width:${p.toFixed(1)}%"></i></div>`;
+  };
+
+  /* ---------- Основная информация: баланс / финрезультаты / коэффициенты ---------- */
+  function indicators(data, groupCode) {
+    const g = data.groups.find(x => x.code === groupCode);
+    if (!g) return '<p class="events-empty">Нет данных</p>';
+    const yrs = data.years;
+
+    const rows = g.rows.map(r => {
+      const prev = r.values[r.values.length - 2];
+      const cur = r.values[r.values.length - 1];
+      return `<tr><td>${Format.escape(r.label)}</td>` +
+        r.values.map(v => `<td>${Format.byKind(v, r.kind)}</td>`).join('') +
+        `<td>${Format.delta(prev, cur)}</td></tr>`;
+    }).join('');
+
+    return head(g.title, `период ${yrs[0]}–${yrs[yrs.length - 1]} · ${data.unit}`) +
+      `<div class="table-wrap"><table>
+        <thead><tr><th>Показатель</th>${yrs.map(y => `<th>${y}</th>`).join('')}<th>Δ ${yrs[yrs.length - 1]}/${yrs[yrs.length - 2]}</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  }
+
+  /* ---------- Лимиты ----------
+     Два раздела: установленные лимиты (корпоративный и инвестиционный
+     блоки плюс единый сублимит клиента) и заявки на рассмотрении.
+     Единый сублимит не хранится отдельно — по глоссарию это совокупность
+     лимитов обоих блоков, установленных на клиента. */
+  const STATUS_TITLES = { active: 'Активный', closed: 'Закрыт', suspended: 'Приостановлен' };
+
+  function limitBlock(block) {
+    const rows = block.items.map(item => `<tr>
+        <td>${Format.escape(item.product)}</td>
+        <td><span class="badge">${Format.escape(STATUS_TITLES[item.status] || item.status)}</span></td>
+        <td>${Format.escape(item.currency)}</td>
+        <td>${Format.rub(item.limit_amount)}</td>
+        <td>${Format.rub(item.used_amount)}</td>
+        <td>${Format.rub(item.available)}</td>
+        <td>${Format.rub(item.total_limit)}</td>
+        <td>${Number(item.utilization_cap_pct).toFixed(0)}<span class="unit">%</span></td>
+      </tr>`).join('');
+
+    return `<h4 class="sub-title">${Format.escape(block.title)}</h4>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Тип лимита</th><th>Статус лимита</th><th>Валюта</th><th>Сумма лимита</th>
+          <th>Утилизация лимита</th><th>Доступный остаток</th>
+          <th>Совокупный лимит</th><th>«Крышка»</th>
+        </tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  }
+
+  function applicationsBlock(applications) {
+    if (!applications.length) {
+      return `<h3 class="block-title">Заявки на рассмотрении</h3>
+              <p class="events-empty">Заявок на рассмотрении нет.</p>`;
+    }
+    const rows = applications.map(item => `<tr>
+        <td>${Format.escape(item.product)}</td>
+        <td><span class="badge is-pending">${Format.escape(item.status)}</span></td>
+        <td>${Format.escape(item.currency)}</td>
+        <td>${item.term_months} мес.</td>
+        <td>${Format.rub(item.amount)}</td>
+        <td class="comment-cell">${Format.escape(item.comment || '—')}</td>
+      </tr>`).join('');
+
+    return `<h3 class="block-title">Заявки на рассмотрении</h3>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Тип лимита</th><th>Статус лимита</th><th>Валюта</th>
+          <th>Срок лимита</th><th>Запрошенная сумма</th><th>Комментарии</th>
+        </tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  }
+
+  function limits(d) {
+    const blocks = d.blocks || [];
+    const unified = d.unified || { sublimit: d.total, utilized: d.used, available: d.total - d.used };
+    const utilization = unified.sublimit ? unified.utilized / unified.sublimit * 100 : 0;
+
+    return head('Лимиты', `установленные лимиты и заявки · валюта ₽`) +
+      `<h3 class="block-title">Установленные лимиты</h3>
+       ${blocks.map(limitBlock).join('')}
+
+       <h4 class="sub-title">Единый сублимит</h4>
+       <div class="cards">
+         ${card('Единый сублимит', Format.compact(unified.sublimit), true)}
+         ${card('Единый доступный сублимит', Format.compact(unified.available))}
+         ${card('Единый утилизированный сублимит', Format.compact(unified.utilized))}
+       </div>
+       ${usageBar(unified.utilized, unified.sublimit)}
+       <p class="bar-note">Утилизация ${utilization.toFixed(1).replace('.', ',')}% от единого сублимита</p>
+
+       ${applicationsBlock(d.applications || [])}`;
+  }
+
+  /* ---------- Сублимиты ---------- */
+  function sublimits(d) {
+    let last = null;
+    const rows = d.items.map(x => {
+      const group = x.product !== last
+        ? `<tr class="group-row"><td colspan="6">${Format.escape(x.product)}</td></tr>` : '';
+      last = x.product;
+      return group + `<tr>
+        <td>${Format.escape(x.name)}</td>
+        <td>${Format.rub(x.amount)}</td>
+        <td>${Format.rub(x.used_amount)}</td>
+        <td>${Format.rub(x.available)}</td>
+        <td>${x.tenor_months} мес.</td>
+        <td>${(x.used_amount / x.amount * 100).toFixed(1).replace('.', ',')}<span class="unit">%</span></td>
+      </tr>`;
+    }).join('');
+
+    return head('Сублимиты', `${d.items.length} позиций`) +
+      `<div class="cards">
+        ${card('Сумма сублимитов', Format.compact(d.total), true)}
+        ${card('Использовано', Format.compact(d.used))}
+        ${card('Свободно', Format.compact(d.total - d.used))}
+      </div>
+      ${usageBar(d.used, d.total)}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Сублимит</th><th>Сумма</th><th>Использовано</th><th>Доступно</th><th>Срок</th><th>Утилизация</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  }
+
+  /* ---------- Информация о резервах ----------
+     Два блока по стандартам учёта: РСБУ и МСФО. Внутри — название
+     продукта, валюта и сумма лимита, срок лимита и сумма резерва.
+     Наименование клиента выводится в правом верхнем углу раздела. */
+  function reserveBlock(block) {
+    const rows = block.items.map(item => `<tr>
+        <td>${Format.escape(item.product)}</td>
+        <td>${Format.escape(item.currency)}</td>
+        <td>${Format.rub(item.limit_amount)}</td>
+        <td>${item.term_months} мес.</td>
+        <td>${Format.rub(item.reserve_amount)}</td>
+        <td>${(item.reserve_amount / item.limit_amount * 100).toFixed(2).replace('.', ',')}<span class="unit">%</span></td>
+      </tr>`).join('');
+
+    return `<h3 class="block-title">${Format.escape(block.title)} · ${Format.compact(block.total)}</h3>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Название продукта</th><th>Валюта лимита</th><th>Сумма лимита</th>
+          <th>Срок лимита</th><th>Сумма резерва</th><th>Ставка резервирования</th>
+        </tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  }
+
+  function reserves(d) {
+    const blocks = d.blocks || [];
+    if (!blocks.length) {
+      return head('Информация о резервах', '') +
+        '<p class="events-empty">Позиции резервов не заведены.</p>';
+    }
+
+    return head('Информация о резервах', `сформировано ${Format.compact(d.total)}`) +
+      blocks.map(reserveBlock).join('');
+  }
+
+  /* ---------- События ----------
+     Список фильтруется вкладками второго уровня; сами вкладки строит tab-tree.js */
+  const EVENT_LABEL = {
+    critical: 'Требует внимания',
+    warning: 'Наблюдение',
+    positive: 'Положительная динамика',
+    info: 'Информация',
+  };
+
+  const FILTER_TITLE = {
+    critical: 'Требуют внимания',
+    warning: 'Наблюдение',
+    positive: 'Положительная динамика',
+  };
+
+  function events(list, filter) {
+    const visible = filter ? list.filter(event => event.level === filter) : list;
+    const period = list.length ? list[0].period : '';
+
+    if (!visible.length) {
+      return head(FILTER_TITLE[filter] || 'События', 'за текущий период') +
+        `<p class="events-empty">Событий нет.</p>`;
+    }
+
+    const items = visible.map(event => `
+      <li class="event event--${event.level}">
+        <span class="event-marker"></span>
+        <div class="event-body">
+          <div class="event-head">
+            <span class="event-title">${Format.escape(event.title)}</span>
+            <span class="event-tag">${EVENT_LABEL[event.level]}</span>
+          </div>
+          <div class="event-detail">${Format.escape(event.detail)}</div>
+          <div class="event-source">${Format.escape(event.source)} · ${Format.escape(event.period)}</div>
+        </div>
+      </li>`).join('');
+
+    return head(FILTER_TITLE[filter] || 'События',
+                `${visible.length} за текущий период${period ? ' · ' + Format.escape(period) : ''}`) +
+      `<ul class="events">${items}</ul>`;
+  }
+
+  /* ---------- Основная информация: структура группы компаний ----------
+     Сетка из пяти колонок: верхняя строка — показатели единого лимита
+     группы, ниже по строке на каждую компанию. Все карточки справочные,
+     кликов по ним нет. Термины — по глоссарию: единый лимит включает
+     корпоративный и инвестиционный блоки, сублимит — часть единого
+     лимита, установленная на конкретного клиента. */
+  const groupCell = (label, value, accent) => `
+    <div class="group-cell${accent ? ' is-accent' : ''}">
+      ${label ? `<span class="cell-label">${Format.escape(label)}</span>` : ''}
+      <span class="cell-value">${value}</span>
+    </div>`;
+
+  /* Кликается только наименование — по нему выбирают компанию для перехода.
+     Компания, карточка которой открыта сейчас, остаётся справочной. */
+  const selectableCell = (label, value, member, selected) => `
+    <button type="button"
+            class="group-cell is-selectable${selected ? ' is-selected' : ''}"
+            data-company-id="${member.id}"
+            aria-pressed="${selected}">
+      <span class="cell-label">${Format.escape(label)}</span>
+      <span class="cell-value">${Format.escape(value)}</span>
+    </button>`;
+
+  const currentCell = (label, value) => `
+    <div class="group-cell is-current">
+      <span class="cell-label">${Format.escape(label)}</span>
+      <span class="cell-value">${Format.escape(value)}</span>
+      <span class="cell-note">текущая компания</span>
+    </div>`;
+
+  function group(data, options = {}) {
+    const { selectedId = null, currentId = null } = options;
+    const utilization = data.unified_limit
+      ? data.utilized_limit / data.unified_limit * 100 : 0;
+
+    const limitRow = `
+      <div class="group-grid">
+        ${groupCell('Сумма единого лимита', Format.compact(data.unified_limit), true)}
+        ${groupCell('Единый доступный лимит', Format.compact(data.available_limit))}
+        ${groupCell('Единый утилизированный лимит', Format.compact(data.utilized_limit))}
+        ${groupCell('Совокупный лимит', Format.compact(data.total_limit))}
+        ${groupCell('«Крышка» по утилизации', Number(data.utilization_cap_pct).toFixed(0) + '%')}
+      </div>`;
+
+    const headings = ['Компания', 'ИНН', 'Единый сублимит',
+                      'Единый доступный сублимит', 'Единый утилизированный сублимит'];
+
+
+    // подписи в карточках компаний дублируют шапку и скрыты на широком
+    // экране — на узком шапка прячется, и подписи становятся видны
+    // текущая компания всегда первой строкой
+    const ordered = [...data.members].sort((a, b) =>
+      (b.id === currentId) - (a.id === currentId) || b.sublimit_amount - a.sublimit_amount);
+
+    // кнопка перехода встаёт отдельной строкой сразу под выбранной компанией
+    // и раздвигает остальные строки вниз; сетка та же, поэтому кнопка
+    // оказывается ровно под карточкой с наименованием
+    const goRow = id => id !== selectedId ? '' : `
+      <div class="go-row">
+        <div class="go-cell">
+          <button type="button" class="go-button" data-go="${id}">Перейти</button>
+        </div>
+      </div>`;
+
+    const memberRows = ordered.map(member => `
+      <div class="group-grid group-grid--members">
+        ${member.id === currentId
+            ? currentCell(headings[0], member.name)
+            : selectableCell(headings[0], member.name, member, member.id === selectedId)}
+        ${groupCell(headings[1], Format.escape(member.inn))}
+        ${groupCell(headings[2], Format.compact(member.sublimit_amount))}
+        ${groupCell(headings[3], Format.compact(member.available_amount))}
+        ${groupCell(headings[4], Format.compact(member.utilized_amount))}
+      </div>
+      ${goRow(member.id)}`).join('');
+
+    return head(data.name, `Компаний в структуре: ${data.members.length}`) +
+      `<h3 class="block-title">Единый лимит</h3>
+       ${limitRow}
+       ${usageBar(data.utilized_limit, data.unified_limit)}
+       <p class="bar-note">Утилизация ${utilization.toFixed(1).replace('.', ',')}% при «крышке»
+          ${Number(data.utilization_cap_pct).toFixed(0)}%</p>
+
+       <div class="block-head">
+         <h3 class="block-title">Компании в структуре ГК</h3>
+         <span class="block-hint">Выберите наименование компании, чтобы перейти к её карточке</span>
+       </div>
+       <div class="group-grid group-grid--head">
+         ${headings.map(title => `<span>${Format.escape(title)}</span>`).join('')}
+       </div>
+       ${memberRows}`;
+  }
+
+  /* ---------- Основная информация: атрибутный состав ---------- */
+  function profile(data) {
+    const attributes = [
+      ['Наименование компании', data.name],
+      ['ИНН', data.inn],
+      ['ОГРН', data.ogrn || '—'],
+      ['КПП', data.kpp || '—'],
+      ['Адрес', data.address || '—'],
+      ['ОКВЭД', data.okved ? `${data.okved} — ${data.okved_name || ''}` : '—'],
+      ['Группа компаний', data.group ? data.group.name : 'Отсутствует'],
+    ];
+    const rows = attributes.map(([key, value]) =>
+      `<tr><td>${Format.escape(key)}</td><td class="value-cell">${Format.escape(value)}</td></tr>`).join('');
+
+    return head('Основная информация', '') +
+      `<div class="table-wrap"><table>
+        <thead><tr><th>Атрибут</th><th>Значение</th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
+  }
+
+  return { indicators, limits, sublimits, reserves, events, group, profile };
+})();
+
+</script>
+<script>
+/* ============================================================
+   Поисковая строка: подсказки после 3 символов, по названию и ИНН.
+   Наружу отдаёт onSelect(company) и onSubmit(company).
+   ============================================================ */
+const SearchBar = (() => {
+  const byId = id => document.getElementById(id);
+
+  const input = byId('searchInput'),
+        field = byId('searchField'),
+        dropdown = byId('suggestionList'),
+        submitButton = byId('searchButton'),
+        hint = byId('searchHint'),
+        clearButton = byId('clearButton');
+
+  let suggestions = [];        // компании, показанные в выпадающем списке
+  let highlightedIndex = -1;   // подсвеченная строка списка
+  let selectedCompany = null;  // компания, выбранная пользователем
+  let requestCounter = 0;      // номер запроса, чтобы отбрасывать устаревшие ответы
+  let debounceTimer = null;
+
+  const callbacks = { select: () => {}, submit: () => {} };
+
+  /* ---------- ввод ---------- */
+  input.addEventListener('focus', () => field.classList.add('is-focused'));
+  input.addEventListener('blur', () => field.classList.remove('is-focused'));
+
+  input.addEventListener('input', () => {
+    field.classList.toggle('has-text', input.value.length > 0);
+    if (selectedCompany && input.value !== selectedCompany.name && input.value !== selectedCompany.inn) {
+      clearSelection();
+    }
+    const text = input.value.trim();
+    clearTimeout(debounceTimer);
+
+    if (text.length < 3) {
+      closeDropdown();
+      hint.textContent = 'Введите не менее 3 символов';
+      return;
+    }
+    hint.textContent = 'Выберите компанию из списка';
+    debounceTimer = setTimeout(() => loadSuggestions(text), 160);
+  });
+
+  async function loadSuggestions(text) {
+    const requestId = ++requestCounter;
+    let result = [];
+    try { result = await API.searchCompanies(text); } catch { result = []; }
+    if (requestId !== requestCounter) return;   // ответ устарел — пользователь допечатал
+    suggestions = result;
+    highlightedIndex = -1;
+    renderDropdown(text);
+  }
+
+  function renderDropdown(text) {
+    if (!suggestions.length) {
+      dropdown.innerHTML = '<div class="suggestions-empty">Ничего не найдено — проверьте написание или введите ИНН</div>';
+      openDropdown();
+      return;
+    }
+    dropdown.innerHTML = suggestions.map((company, i) => `
+      <div class="suggestion" role="option" id="suggestion${i}" aria-selected="false" data-index="${i}">
+        <span class="suggestion-dot"></span>
+        <span>
+          <span class="suggestion-name">${highlightMatch(company.name, text)}</span>
+          <span class="suggestion-meta">ИНН ${highlightMatch(company.inn, text)} · КПП ${Format.escape(company.kpp || '—')} · ${Format.escape(company.industry || '')}</span>
+        </span>
+      </div>`).join('');
+
+    dropdown.querySelectorAll('.suggestion').forEach(node => {
+      node.addEventListener('mousedown', event => {
+        event.preventDefault();
+        selectCompany(suggestions[+node.dataset.index]);
+      });
+      node.addEventListener('mouseenter', () => highlight(+node.dataset.index));
+    });
+    openDropdown();
+  }
+
+  function highlightMatch(value, text) {
+    const position = Format.normalize(value).indexOf(Format.normalize(text));
+    if (position < 0) return Format.escape(value);
+    return Format.escape(value.slice(0, position)) +
+           '<b>' + Format.escape(value.slice(position, position + text.length)) + '</b>' +
+           Format.escape(value.slice(position + text.length));
+  }
+
+  const openDropdown = () => {
+    dropdown.classList.add('is-open');
+    input.setAttribute('aria-expanded', 'true');
+  };
+
+  const closeDropdown = () => {
+    dropdown.classList.remove('is-open');
+    input.setAttribute('aria-expanded', 'false');
+    highlightedIndex = -1;
+  };
+
+  function highlight(index) {
+    highlightedIndex = index;
+    dropdown.querySelectorAll('.suggestion').forEach((node, i) =>
+      node.setAttribute('aria-selected', i === index));
+    const active = dropdown.querySelector('#suggestion' + index);
+    if (active) active.scrollIntoView({ block: 'nearest' });
+    input.setAttribute('aria-activedescendant', 'suggestion' + index);
+  }
+
+  /* ---------- клавиатура ---------- */
+  input.addEventListener('keydown', event => {
+    const isOpen = dropdown.classList.contains('is-open');
+    if (event.key === 'ArrowDown' && isOpen) {
+      event.preventDefault();
+      highlight((highlightedIndex + 1) % suggestions.length);
+    } else if (event.key === 'ArrowUp' && isOpen) {
+      event.preventDefault();
+      highlight((highlightedIndex - 1 + suggestions.length) % suggestions.length);
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      if (isOpen && highlightedIndex > -1) selectCompany(suggestions[highlightedIndex]);
+      else if (selectedCompany) callbacks.submit(selectedCompany);
+    } else if (event.key === 'Escape') {
+      closeDropdown();
+    }
+  });
+
+  document.addEventListener('click', event => {
+    if (!event.target.closest('.search-area')) closeDropdown();
+  });
+
+  /* ---------- выбор компании ---------- */
+  function selectCompany(company) {
+    selectedCompany = company;
+    input.value = company.name;
+    field.classList.add('has-text');
+    closeDropdown();
+    submitButton.disabled = false;
+    hint.textContent = 'Компания выбрана — нажмите «Поиск»';
+    callbacks.select(company);
+  }
+
+  function clearSelection() {
+    selectedCompany = null;
+    submitButton.disabled = true;
+  }
+
+  function reset() {
+    input.value = '';
+    field.classList.remove('has-text');
+    clearSelection();
+    closeDropdown();
+    hint.textContent = 'Введите не менее 3 символов';
+    input.focus();
+  }
+
+  clearButton.addEventListener('click', reset);
+  submitButton.addEventListener('click', () => {
+    if (selectedCompany) callbacks.submit(selectedCompany);
+  });
+
+  return {
+    onSelect: fn => { callbacks.select = fn; },
+    onSubmit: fn => { callbacks.submit = fn; },
+    getSelected: () => selectedCompany,
+    setBusy: busy => { submitButton.disabled = busy || !selectedCompany; },
+    reset,
+  };
+})();
+
+</script>
+<script>
+/* ============================================================
+   Дерево вкладок.
+
+   Уровень 1   Компания · ИНН · КПП · События
+   Уровень 2   Основная информация · Лимиты · Сублимиты · Резервы
+   Уровень 3   Баланс · Финрезультаты · Коэффициенты
+
+   Вкладки создаются один раз на загрузку компании, дальше меняются
+   только классы — иначе анимация появления повторялась бы на каждый клик.
+   ============================================================ */
+const TabTree = (() => {
+  const byId = id => document.getElementById(id);
+
+  const treeRoot = byId('tabTree'),
+        companyLevel = byId('companyLevel'),
+        sectionLevel = byId('sectionLevel'),
+        groupLevel = byId('groupLevel'),
+        companyTabs = byId('companyTabs'),
+        sectionTabs = byId('sectionTabs'),
+        groupTabs = byId('groupTabs'),
+        contentArea = byId('panelContent');
+
+  const arrowLeft = treeRoot.querySelector('.row-arrow--left');
+  const arrowRight = treeRoot.querySelector('.row-arrow--right');
+
+  const state = {
+    company: null,
+    data: null,
+    events: [],
+    view: null,          // 'company' | 'events' — что выбрано на первом уровне
+    section: null,       // 'main' | 'statements' | 'limits' | 'sublimits' | 'reserves'
+    group: 'balance',    // 'balance' | 'results' | 'ratios'
+    attribute: null,     // выбранный атрибут в «Основной информации» ('group' раскрывает ГК)
+    groupSelection: null, // компания, выбранная в структуре ГК для перехода
+    eventFilter: 'critical',  // какая категория событий показана
+  };
+
+  const tabNodes = {
+    company: null, events: null, sections: {}, groups: {},
+    eventFilters: {}, attributes: {},
+  };
+
+  const callbacks = { openCompany: () => {} };
+
+  const EVENT_FILTERS = [
+    { code: 'critical', label: 'Требуют внимания', note: 'резкие отклонения' },
+    { code: 'warning',  label: 'Наблюдение',       note: 'умеренные изменения' },
+    { code: 'positive', label: 'Положительная динамика', note: 'улучшение показателей' },
+  ];
+
+  const INDICATOR_GROUPS = [
+    { code: 'balance', title: 'Баланс' },
+    { code: 'results', title: 'Фин. результаты' },
+    { code: 'ratios',  title: 'Коэффициенты' },
+  ];
+
+  /* ---------- конструктор вкладки ---------- */
+  function createTab({ label, labelFlag, value, note, isStatic, index = 0, onClick }) {
+    const node = document.createElement(isStatic ? 'div' : 'button');
+    node.className = 'tab' + (isStatic ? ' is-static' : '');
+    node.style.animationDelay = index * 45 + 'ms';
+    if (!isStatic) {
+      node.type = 'button';
+      node.addEventListener('click', onClick);
+    }
+    node.innerHTML =
+      (label ? `<span class="tab-label">${Format.escape(label)}` +
+               (labelFlag ? ` <i class="tab-flag">${Format.escape(labelFlag)}</i>` : '') +
+               `</span>` : '') +
+      `<span class="tab-value">${Format.escape(value)}</span>` +
+      `<span class="tab-note">${note || ''}</span>`;
+    node.noteElement = node.querySelector('.tab-note');
+    return node;
+  }
+
+  /* ИНН и КПП живут одним серым блоком: это реквизиты одной компании,
+     дробить их на две карточки незачем. Блок отделён от боковых вкладок
+     короткими вертикальными линиями. */
+  function createIdentityPair(company) {
+    const pair = document.createElement('div');
+    pair.className = 'tab-pair';
+    [['ИНН', company.inn], ['КПП', company.kpp || '—']].forEach(([label, value]) => {
+      const cell = document.createElement('div');
+      cell.className = 'tab-cell';
+      cell.innerHTML = `<span class="tab-label">${Format.escape(label)}</span>` +
+                       `<span class="tab-value">${Format.escape(value)}</span>`;
+      pair.append(cell);
+    });
+    return pair;
+  }
+
+  /* ---------- построение уровней ---------- */
+  function buildTabs() {
+    const company = state.company;
+    const { indicators, limits, sublimits, reserves, profile } = state.data;
+
+    // --- уровень 1
+    tabNodes.company = createTab({
+      label: 'Компания', value: company.name, note: 'Открыть карточку',
+      index: 0, onClick: () => selectView('company'),
+    });
+    tabNodes.company.classList.add('tab--company');   // ширина по длине названия
+
+    const criticalCount = Events.countBy(state.events, 'critical');
+    tabNodes.events = createTab({
+      label: 'События', labelFlag: '(в разработке)',
+      value: criticalCount ? `${criticalCount} требуют внимания` : 'отклонений нет',
+      index: 3, onClick: () => selectView('events'),
+    });
+    tabNodes.events.classList.add('tab--events');
+    if (criticalCount) tabNodes.events.classList.add('has-alert');
+
+    // фильтры событий — второй уровень, когда открыта вкладка «События»
+    tabNodes.eventFilters = {};
+    EVENT_FILTERS.forEach((filter, index) => {
+      const count = Events.countBy(state.events, filter.code);
+      tabNodes.eventFilters[filter.code] = createTab({
+        label: filter.label, value: String(count), note: filter.note,
+        index, onClick: () => selectEventFilter(filter.code),
+      });
+    });
+
+    setRowTabs(companyTabs, [tabNodes.company, createIdentityPair(company), tabNodes.events]);
+
+    // --- уровень 2
+    const utilization = limits.total
+      ? (limits.used / limits.total * 100).toFixed(1).replace('.', ',') : '0';
+
+    tabNodes.sections = {
+      main: createTab({
+        label: 'Основная информация', value: profile.name,
+        note: profile.group ? profile.group.name : 'без группы компаний',
+        index: 0, onClick: () => selectSection('main'),
+      }),
+      statements: createTab({
+        label: 'Финансовая отчётность', value: `${indicators.years[0]}–${indicators.years[indicators.years.length - 1]}`,
+        note: 'Баланс · Фин. рез-ты · Коэф-ты',
+        index: 1, onClick: () => selectSection('statements'),
+      }),
+      limits: createTab({
+        label: 'Лимиты', value: Format.compact(limits.total),
+        note: `утилизация ${utilization}%`, index: 2, onClick: () => selectSection('limits'),
+      }),
+      sublimits: createTab({
+        label: 'Сублимиты', value: Format.compact(sublimits.total),
+        note: `${sublimits.items.length} позиций`, index: 3, onClick: () => selectSection('sublimits'),
+      }),
+      reserves: createTab({
+        label: 'Информация о резервах', value: Format.compact(reserves.total),
+        note: 'РСБУ · МСФО', index: 4, onClick: () => selectSection('reserves'),
+      }),
+    };
+    sectionTabs.replaceChildren(...Object.values(tabNodes.sections));
+
+    // --- уровень 3: разделы отчётности
+    tabNodes.groups = {};
+    INDICATOR_GROUPS.forEach((group, index) => {
+      const source = indicators.groups.find(item => item.code === group.code);
+      tabNodes.groups[group.code] = createTab({
+        value: group.title,
+        note: source ? `${source.rows.length} показателей` : '',
+        index,
+        onClick: () => {
+          state.group = group.code;
+          syncTabs();
+          renderContent();
+        },
+      });
+    });
+
+    // --- уровень 3: атрибутный состав карточки клиента
+    // ИНН, ОГРН, адрес и ОКВЭД — справочные, кликается только группа компаний
+    const attributeTabs = [
+      { code: 'inn',     label: 'ИНН',   value: profile.inn },
+      { code: 'ogrn',    label: 'ОГРН',  value: profile.ogrn || '—' },
+      { code: 'address', label: 'Адрес', value: profile.address || '—' },
+      { code: 'okved',   label: 'ОКВЭД', value: profile.okved || '—', note: profile.okved_name || '' },
+    ];
+    tabNodes.attributes = {};
+    attributeTabs.forEach((attribute, index) => {
+      tabNodes.attributes[attribute.code] = createTab({
+        label: attribute.label, value: attribute.value, note: attribute.note,
+        isStatic: true, index,
+      });
+    });
+
+    // группа компаний: раскрывается, если есть; иначе «Отсутствует» на том же месте
+    tabNodes.attributes.group = profile.group
+      ? createTab({
+          label: 'Группа компаний', value: profile.group.name,
+
+          index: attributeTabs.length,
+          onClick: () => {
+            state.attribute = state.attribute === 'group' ? null : 'group';
+            syncTabs();
+            renderContent();
+          },
+        })
+      : createTab({
+          label: 'Группа компаний', value: 'Отсутствует',
+          note: 'клиент не входит в ГК',
+          isStatic: true, index: attributeTabs.length,
+        });
+  }
+
+  /* ---------- синхронизация состояний ---------- */
+  function syncTabs() {
+    const companyOpen = state.view === 'company';
+    const eventsOpen = state.view === 'events';
+    const showStatements = companyOpen && state.section === 'statements';
+    const showAttributes = companyOpen && state.section === 'main';
+    const showGroups = showStatements || showAttributes;
+
+    tabNodes.company.classList.toggle('is-active', companyOpen);
+    tabNodes.company.noteElement.textContent = companyOpen ? 'Свернуть карточку' : 'Открыть карточку';
+    tabNodes.events.classList.toggle('is-active', eventsOpen);
+
+    // второй уровень показывает либо разделы компании, либо фильтры событий
+    if (eventsOpen) {
+      setRowTabs(sectionTabs, Object.values(tabNodes.eventFilters));
+      Object.entries(tabNodes.eventFilters).forEach(([code, node]) =>
+        node.classList.toggle('is-active', state.eventFilter === code));
+    } else {
+      setRowTabs(sectionTabs, Object.values(tabNodes.sections));
+      Object.entries(tabNodes.sections).forEach(([code, node]) =>
+        node.classList.toggle('is-active', state.section === code));
+    }
+
+    if (showAttributes) {
+      setRowTabs(groupTabs, Object.values(tabNodes.attributes));
+      if (tabNodes.attributes.group) {
+        tabNodes.attributes.group.classList.toggle('is-active', state.attribute === 'group');
+      }
+    } else {
+      setRowTabs(groupTabs, Object.values(tabNodes.groups));
+      Object.entries(tabNodes.groups).forEach(([code, node]) =>
+        node.classList.toggle('is-active', state.group === code));
+    }
+
+    setLevelVisible(sectionLevel, companyOpen || eventsOpen);
+    setLevelVisible(groupLevel, showGroups);
+
+    // сторона ветки: «Компания» — крайняя слева, «События» — крайняя справа.
+    // Ни одна не выбрана — строка возвращается в центр.
+    treeRoot.classList.toggle('branch-left', companyOpen);
+    treeRoot.classList.toggle('branch-right', eventsOpen);
+
+    // считаем после того, как браузер применил классы и состав строк
+    requestAnimationFrame(() => {
+      fitTopRow();
+      layoutBranch();
+    });
+  }
+
+  /* Меняет состав строки только когда он действительно другой —
+     иначе повторялась бы анимация появления вкладок */
+  function setRowTabs(row, nodes) {
+    if (row.firstElementChild !== nodes[0] || row.childElementCount !== nodes.length) {
+      row.replaceChildren(...nodes);
+    }
+  }
+
+  /* ------------------------------------------------------------
+     Геометрия уровней.
+
+     Все строки — включая первую — выравниваются по одному краю:
+     левому при раскрытии «Компании», правому при раскрытии «Событий».
+     Цель фиксированная (граница поля контейнера), а не карточка, по
+     которой кликнули, поэтому раскрытие «Финансовой отчётности» и
+     «Основной информации» даёт одинаковую раскладку.
+
+     Черта-указатель никаких вычислений не требует: она нарисована
+     на краю контейнера средствами CSS и одинакова для всех уровней.
+
+     offsetLeft читает положение ДО transform, поэтому измерения не
+     зависят от текущей анимации сдвига.
+     ------------------------------------------------------------ */
+  const cssPx = name =>
+    parseInt(getComputedStyle(treeRoot).getPropertyValue(name), 10) || 0;
+
+  function offsetWithin(node, ancestor) {
+    let x = 0;
+    while (node && node !== ancestor) {
+      x += node.offsetLeft;
+      node = node.offsetParent;
+    }
+    return x;
+  }
+
+  function offsetWithinY(node, ancestor) {
+    let y = 0;
+    while (node && node !== ancestor) {
+      y += node.offsetTop;
+      node = node.offsetParent;
+    }
+    return y;
+  }
+
+  /* ------------------------------------------------------------
+     Подбор ширины верхней строки.
+
+     ИНН и КПП переносить нельзя — число, разорванное на две строки,
+     читается как ошибка. Ширина подбирается в два подхода:
+
+       1. вся карточка в одну строку (max-content) — идеальный вариант;
+       2. если такая строка не помещается, берётся ширина самого длинного
+          слова (min-content): длинное наименование переносится по пробелам,
+          но ни слово, ни число не разрываются.
+
+     Полученная ширина назначается обеим боковым вкладкам, поэтому они
+     всегда одного размера; серый блок ИНН/КПП занимает столько, сколько
+     нужно реквизитам. Если не помещается и второй вариант, замер
+     не применяется.
+     ------------------------------------------------------------ */
+  const TAB_GAP = 12;
+
+  function measureRow(mode) {
+    companyTabs.classList.add(mode);
+    const sides = [companyTabs.firstElementChild, companyTabs.lastElementChild];
+    const needed = sides.reduce((max, tab) => Math.max(max, tab ? tab.offsetWidth : 0), 0);
+    companyTabs.classList.remove(mode);
+    return needed;
+  }
+
+  function fitTopRow() {
+    const sides = [companyTabs.firstElementChild, companyTabs.lastElementChild];
+    if (!sides[0] || sides[0] === sides[1]) return;
+
+    companyTabs.style.removeProperty('--tab-min');
+    companyTabs.style.removeProperty('max-width');
+    if (!companyTabs.clientWidth) return;
+
+    const pair = companyTabs.querySelector('.tab-pair');
+    const pairWidth = pair ? pair.offsetWidth : 0;
+    const normal = companyTabs.clientWidth;
+    const roomy = treeRoot.clientWidth - 12;   // строка может занять поля под черту
+    const rowWidth = width => width * 2 + pairWidth;
+
+    // 1. лучший вариант: боковые вкладки целиком в одну строку
+    const whole = measureRow('is-measuring-whole');
+    // 2. запасной: не рвать слова и числа, но разрешить перенос по пробелам
+    const unbroken = measureRow('is-measuring-word');
+
+    let needed = 0;
+    let useGutters = false;
+
+    if (rowWidth(whole) <= normal) needed = whole;
+    else if (rowWidth(whole) <= roomy) { needed = whole; useGutters = true; }
+    else if (rowWidth(unbroken) <= normal) needed = unbroken;
+    else if (rowWidth(unbroken) <= roomy) { needed = unbroken; useGutters = true; }
+    else return;                                // не помещается и так
+
+    if (useGutters) companyTabs.style.maxWidth = '100%';
+    companyTabs.style.setProperty('--tab-min', Math.ceil(needed) + 'px');
+  }
+
+  /* Стрелки ставятся вплотную к крайним карточкам первой строки и
+     сдвигаются на ту же величину, что и сама строка. */
+  const ARROW_SIZE = 16;
+  const ARROW_GAP = 14;
+
+  function placeArrows(shift) {
+    const first = companyTabs.firstElementChild;
+    const last = companyTabs.lastElementChild;
+    if (!arrowLeft || !first || !companyTabs.offsetWidth) return;
+
+    const base = offsetWithin(companyTabs, treeRoot);
+    const left = base + first.offsetLeft + shift;
+    const right = base + last.offsetLeft + last.offsetWidth + shift;
+    const middle = offsetWithinY(first, treeRoot) + first.offsetHeight / 2 - ARROW_SIZE / 2;
+
+    arrowLeft.style.left = Math.round(left - ARROW_GAP - ARROW_SIZE) + 'px';
+    arrowRight.style.left = Math.round(right + ARROW_GAP) + 'px';
+    arrowLeft.style.top = arrowRight.style.top = Math.round(middle) + 'px';
+  }
+
+  /* ближний к ветке край крайней карточки строки */
+  function nearEdge(row, toRight) {
+    const tab = toRight ? row.lastElementChild : row.firstElementChild;
+    if (!tab) return null;
+    const x = offsetWithin(row, treeRoot) + tab.offsetLeft;
+    return toRight ? x + tab.offsetWidth : x;
+  }
+
+  function layoutBranch() {
+    const toRight = treeRoot.classList.contains('branch-right');
+    const toLeft = treeRoot.classList.contains('branch-left');
+    const rows = [companyTabs, sectionTabs, groupTabs];
+
+    if (!toLeft && !toRight) {
+      rows.forEach(row => { row.style.transform = ''; });
+      placeArrows(0);
+      return;
+    }
+
+    const gutter = cssPx('--marker-gutter');
+    const target = toRight ? treeRoot.offsetWidth - gutter : gutter;
+    const visible = new Set(visibleRows().map(entry => entry.row));
+
+    rows.forEach(row => {
+      // строка третьего уровня остаётся по центру: карточек в ней меньше,
+      // и прижатая к краю она выглядела бы обрубленной
+      if (row === groupTabs || !visible.has(row) || !row.offsetWidth) {
+        row.style.transform = '';
+        return;
+      }
+      const edge = nearEdge(row, toRight);
+      if (edge === null) return;
+      const shift = Math.round(target - edge);
+      row.style.transform = shift ? `translateX(${shift}px)` : '';
+      if (row === companyTabs) placeArrows(shift);
+    });
+  }
+
+  function visibleRows() {
+    const list = [{ row: companyTabs, branch: null }];
+    if (sectionLevel.classList.contains('is-open')) {
+      list.push({ row: sectionTabs, branch: sectionLevel.querySelector('.tab-branch') });
+    }
+    if (groupLevel.classList.contains('is-open')) {
+      list.push({ row: groupTabs, branch: groupLevel.querySelector('.tab-branch') });
+    }
+    return list;
+  }
+
+  /* пересчёт при изменении ширины окна */
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      fitTopRow();
+      layoutBranch();
+    }, 120);
+  });
+
+  /* inert убирает скрытые уровни из обхода по Tab */
+  function setLevelVisible(level, visible) {
+    level.classList.toggle('is-open', visible);
+    level.toggleAttribute('inert', !visible);
+  }
+
+  /* ---------- контент ---------- */
+  function renderContent() {
+    const data = state.data;
+    let html = '';
+
+    if (state.view === 'events') {
+      html = TableViews.events(state.events, state.eventFilter);
+    } else if (state.view === 'company') {
+      if (state.section === 'main') {
+        html = state.attribute === 'group' && data.profile.group
+          ? TableViews.group(data.profile.group, {
+              selectedId: state.groupSelection,
+              currentId: state.company.id,
+            })
+          : TableViews.profile(data.profile);
+      }
+      else if (state.section === 'statements') html = TableViews.indicators(data.indicators, state.group);
+      else if (state.section === 'limits')    html = TableViews.limits(data.limits);
+      else if (state.section === 'sublimits') html = TableViews.sublimits(data.sublimits);
+      else if (state.section === 'reserves')  html = TableViews.reserves(data.reserves);
+    }
+
+    contentArea.innerHTML = html;
+
+    // выбор компании в структуре ГК: клик отмечает её, кнопка «Перейти» —
+    // запускает полноценный запрос за данными выбранной компании
+    contentArea.querySelectorAll('[data-company-id]').forEach(node =>
+      node.addEventListener('click', () => {
+        const id = +node.dataset.companyId;
+        state.groupSelection = state.groupSelection === id ? null : id;
+        renderContent();
+      }));
+
+    const goButton = contentArea.querySelector('[data-go]');
+    if (goButton) {
+      goButton.addEventListener('click', () => callbacks.openCompany(+goButton.dataset.go));
+    }
+
+    contentArea.style.animation = 'none';   // перезапуск анимации появления
+    void contentArea.offsetWidth;
+    contentArea.style.animation = '';
+  }
+
+  /* ---------- взаимодействие ---------- */
+  /* Один клик раскрывает ровно один уровень: карточка компании
+     показывает строку разделов и ничего не выбирает в ней, раздел
+     показывает свою строку — и так далее вглубь. */
+  function selectView(view) {
+    state.view = state.view === view ? null : view;
+    state.section = null;
+    state.attribute = null;
+    state.groupSelection = null;
+    if (state.view === 'events') state.eventFilter = 'critical';   // по умолчанию — критичные
+    syncTabs();
+    renderContent();
+  }
+
+  function selectEventFilter(code) {
+    state.eventFilter = code;
+    syncTabs();
+    renderContent();
+  }
+
+  function selectSection(section) {
+    state.section = state.section === section ? null : section;
+    state.attribute = null;
+    state.groupSelection = null;
+    syncTabs();
+    renderContent();
+  }
+
+  /* ---------- публичный интерфейс ---------- */
+  function render(company, data) {
+    Object.assign(state, {
+      company, data,
+      events: Events.detect(data),
+      view: null, section: null, group: 'balance', eventFilter: 'critical',
+      attribute: null, groupSelection: null,
+    });
+    treeRoot.hidden = false;
+    buildTabs();
+    companyLevel.classList.add('is-open');
+    syncTabs();
+    renderContent();
+  }
+
+  function clear() {
+    treeRoot.hidden = true;
+    companyTabs.style.removeProperty('--tab-min');
+    treeRoot.classList.remove('branch-left', 'branch-right');
+    companyLevel.classList.remove('is-open');
+    setLevelVisible(sectionLevel, false);
+    setLevelVisible(groupLevel, false);
+    contentArea.innerHTML = '';
+    Object.assign(state, {
+      company: null, data: null, events: [], view: null, section: null,
+      group: 'balance', eventFilter: 'critical', attribute: null, groupSelection: null,
+    });
+  }
+
+  return {
+    render, clear,
+    onOpenCompany: fn => { callbacks.openCompany = fn; },
+  };
+})();
+
+</script>
+<script>
+/* ============================================================
+   Сборка: поиск -> «Обработка» -> дерево вкладок -> выгрузка.
+   ============================================================ */
+(() => {
+  const byId = id => document.getElementById(id);
+
+  const resultPanel = byId('resultPanel'),
+        processing = byId('processingIndicator'),
+        processingNote = byId('processingNote'),
+        errorBox = byId('errorBox'),
+        errorMessage = byId('errorMessage'),
+        actionBar = byId('actionBar'),
+        exportButton = byId('exportButton'),
+        statusChip = byId('statusChip');
+
+  let loaded = null;             // { company, data } — то, что показано и выгружается
+  let hideActionBarTimer = null; // отложенное скрытие панели
+
+  SearchBar.onSubmit(loadCompany);
+
+  /* Переход на карточку другой компании из структуры ГК.
+     Это полноценный новый запрос — тот же цикл, что и при поиске:
+     «Обработка», параллельная загрузка всех разделов, сборка дерева.
+     Прежние данные не переиспользуются. */
+  TabTree.onOpenCompany(async companyId => {
+    document.body.classList.add('is-searching');
+    resultPanel.classList.add('is-visible');
+    TabTree.clear();
+    hideActionBar();
+    errorBox.classList.remove('is-visible');
+    processing.classList.add('is-visible');
+    processingNote.textContent = 'Открываем карточку компании';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+      const company = await API.company(companyId);
+      if (!company) throw new Error('Компания не найдена');
+      await loadCompany(company);
+    } catch (error) {
+      processing.classList.remove('is-visible');
+      errorMessage.textContent =
+        'Не удалось открыть карточку выбранной компании. Проверьте соединение с базой и повторите.';
+      errorBox.classList.add('is-visible');
+      console.error(error);
+    }
+  });
+  byId('retryButton').addEventListener('click', () => loaded && loadCompany(loaded.company));
+  byId('resetButton').addEventListener('click', resetView);
+  exportButton.addEventListener('click', downloadExcel);
+
+  async function loadCompany(company) {
+    loaded = { company, data: null };
+    document.body.classList.add('is-searching');
+    resultPanel.classList.add('is-visible');
+    TabTree.clear();
+    hideActionBar();
+    errorBox.classList.remove('is-visible');
+    processing.classList.add('is-visible');
+    processingNote.textContent = `Собираем данные по «${company.name}»`;
+    SearchBar.setBusy(true);
+
+    try {
+      // все ветки дерева тянем параллельно
+      const [profile, indicators, limits, sublimits, reserves] = await Promise.all([
+        API.profile(company.id),
+        API.indicators(company.id),
+        API.limits(company.id),
+        API.sublimits(company.id),
+        API.reserves(company.id),
+      ]);
+      const data = { profile, indicators, limits, sublimits, reserves };
+      loaded = { company, data };
+
+      processing.classList.remove('is-visible');
+      TabTree.render(company, data);
+      showActionBar();
+    } catch (error) {
+      processing.classList.remove('is-visible');
+      errorMessage.textContent =
+        `Не удалось получить данные по компании «${company.name}». Проверьте соединение с базой и повторите.`;
+      errorBox.classList.add('is-visible');
+      console.error(error);
+    } finally {
+      SearchBar.setBusy(false);
+    }
+  }
+
+  /* ---------- плавающая панель ----------
+     Скрытие отложено на время анимации, поэтому таймер обязательно
+     снимается при показе: иначе при быстром ответе API панель успевала
+     появиться и тут же пряталась сработавшим таймером. */
+  function showActionBar() {
+    clearTimeout(hideActionBarTimer);
+    hideActionBarTimer = null;
+    actionBar.hidden = false;
+    requestAnimationFrame(() => actionBar.classList.add('is-visible'));
+    updateFreshness();
+  }
+
+  function hideActionBar() {
+    clearTimeout(hideActionBarTimer);
+    actionBar.classList.remove('is-visible');
+    hideActionBarTimer = setTimeout(() => {
+      actionBar.hidden = true;
+      hideActionBarTimer = null;
+    }, 350);
+  }
+
+  /* Когда справочник компаний обновлялся последний раз.
+     Если бэкенда нет — честно говорим, что данные демонстрационные. */
+  async function updateFreshness() {
+    if (API.isOffline()) {
+      statusChip.textContent = 'демо-данные';
+      statusChip.className = 'status-chip is-warning';
+      statusChip.title = 'Бэкенд не отвечает, показаны демо-данные';
+      statusChip.hidden = false;
+      return;
+    }
+
+    const meta = await API.meta();
+    const stamp = meta && meta.directory && meta.directory.updated_at;
+    if (!stamp) { statusChip.hidden = true; return; }
+
+    const moment = new Date(stamp);
+    const isToday = moment.toDateString() === new Date().toDateString();
+    const time = moment.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const day = moment.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+
+    statusChip.textContent = `Последнее обновление ${isToday ? time : day + ' ' + time}`;
+    statusChip.className = 'status-chip is-fresh';
+    statusChip.title = `Справочник: ${meta.directory.count} компаний · ${moment.toLocaleString('ru-RU')}`;
+    statusChip.hidden = false;
+  }
+
+  /* ---------- выгрузка ----------
+     Вкладка «События» в файл не попадает: это аналитика на лету,
+     а не таблица из базы. */
+  function downloadExcel() {
+    if (!loaded || !loaded.data) return;
+    const label = exportButton.lastChild;
+    const previousLabel = label.textContent;
+    exportButton.disabled = true;
+    label.textContent = ' Формируем файл…';
+    try {
+      ExcelExport.download(loaded.company, loaded.data, API.isOffline());
+    } catch (error) {
+      console.error('Не удалось сформировать файл:', error);
+      alert('Не удалось сформировать файл. Подробности в консоли.');
+    } finally {
+      label.textContent = previousLabel;
+      exportButton.disabled = false;
+    }
+  }
+
+  function resetView() {
+    document.body.classList.remove('is-searching');
+    resultPanel.classList.remove('is-visible');
+    hideActionBar();
+    setTimeout(() => {
+      TabTree.clear();
+      errorBox.classList.remove('is-visible');
+    }, 400);
+    loaded = null;
+    SearchBar.reset();
+  }
+})();
+
+</script>
+</body>
+</html>

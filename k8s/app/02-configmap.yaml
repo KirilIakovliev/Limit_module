@@ -1,0 +1,19 @@
+# ============================================================
+# Непарольные настройки. Разделение с Secret не косметическое:
+# ConfigMap можно спокойно показывать, логировать и хранить в git.
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: abb-config
+  namespace: abb
+data:
+  # Пусто -> работаем без кэша. Поиск ходит прямо в Postgres,
+  # Redis в кластер не выносим (см. решение 3.1 в HANDOFF.md).
+  REDIS_URL: ""
+  # Пути внутри образа: фронтенд и миграции вшиты в него,
+  # томов с хоста больше нет.
+  WEB_DIR: "/srv/web"
+  GROUPS_SQL: "/srv/db/04_groups.sql"
+  LIMITS_SQL: "/srv/db/05_limits.sql"
+  RESERVES_SQL: "/srv/db/06_reserves.sql"

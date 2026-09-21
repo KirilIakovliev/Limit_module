@@ -1,0 +1,14 @@
+# ============================================================
+# IngressClass связывает ресурсы Ingress с конкретным контроллером.
+# Без него Traefik не поймёт, какие Ingress его касаются, если в
+# кластере окажется второй контроллер.
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: traefik
+  annotations:
+    # Ingress без указания класса достанется Traefik
+    ingressclass.kubernetes.io/is-default-class: "true"
+spec:
+  controller: traefik.io/ingress-controller

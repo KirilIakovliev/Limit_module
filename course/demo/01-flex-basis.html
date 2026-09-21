@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="ru"><meta charset="utf-8">
+<title>Демо 1. Ширина карточек</title>
+<style>
+ body{font:15px/1.6 system-ui;margin:0;padding:32px;background:#fff;color:#44586C;max-width:980px}
+ h1{font-size:20px;color:#0F1D2B} h2{font-size:15px;margin:28px 0 8px;color:#123A63}
+ .row{display:flex;gap:12px;margin-bottom:8px;border:1px dashed #C3CEDA;padding:6px}
+ .card{min-height:56px;display:grid;place-items:center;background:#EFF5FB;border:1px solid #DCE9F5;
+       border-radius:12px;font-weight:600;color:#123A63}
+ /* ВАРИАНТ А: делим строку поровну */
+ .a .card{flex:1 1 0}
+ /* ВАРИАНТ Б: доля самой ёмкой строки (5 карточек) */
+ .b{--cap:5}
+ .b .card{flex:0 1 calc((100% - (var(--cap) - 1) * 12px) / var(--cap))}
+ code{background:#F2F6FA;padding:2px 6px;border-radius:5px;font-size:13px}
+</style>
+<h1>Почему карточки в разных рядах были разной ширины</h1>
+
+<h2>Вариант А — <code>flex: 1 1 0</code>: строка делится поровну</h2>
+<div class="row a"><div class="card">1</div><div class="card">2</div><div class="card">3</div><div class="card">4</div></div>
+<div class="row a"><div class="card">1</div><div class="card">2</div><div class="card">3</div><div class="card">4</div><div class="card">5</div></div>
+<p>Ряд из четырёх делит ширину на 4, ряд из пяти — на 5. Карточки получаются разными.</p>
+
+<h2>Вариант Б — доля самой ёмкой строки</h2>
+<div class="row b"><div class="card">1</div><div class="card">2</div><div class="card">3</div><div class="card">4</div></div>
+<div class="row b"><div class="card">1</div><div class="card">2</div><div class="card">3</div><div class="card">4</div><div class="card">5</div></div>
+<p>Ширина считается от пяти карточек, поэтому в обоих рядах она одинакова,
+а ряд из четырёх просто занимает 4/5 строки. Так сделано в проекте.</p>
+</html>

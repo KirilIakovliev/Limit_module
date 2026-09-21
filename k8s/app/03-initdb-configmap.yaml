@@ -1,0 +1,713 @@
+# СГЕНЕРИРОВАНО generate-initdb.sh — руками не править.
+# Источник: db/*.sql. Пересобрать после любой правки миграций.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: abb-initdb
+  namespace: abb
+data:
+  01_schema.sql: |
+    -- ============================================================
+    -- Лимитный модуль АББ — схема БД
+    -- ============================================================
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    
+    -- ------------------------------------------------------------
+    -- Справочник компаний (обновляется джобом refresh_companies.py)
+    -- ------------------------------------------------------------
+    CREATE TABLE companies (
+        id          BIGSERIAL PRIMARY KEY,
+        name        TEXT        NOT NULL,
+        inn         VARCHAR(12) NOT NULL UNIQUE,
+        kpp         VARCHAR(9),
+        industry    TEXT,
+        is_active   BOOLEAN     NOT NULL DEFAULT TRUE,
+        source      TEXT        NOT NULL DEFAULT 'seed',
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    
+    -- поиск по названию: триграммы держат опечатки и середину слова
+    CREATE INDEX companies_name_trgm ON companies USING gin (name gin_trgm_ops);
+    -- поиск по ИНН: префиксный + триграммный
+    CREATE INDEX companies_inn_prefix ON companies (inn varchar_pattern_ops);
+    CREATE INDEX companies_inn_trgm   ON companies USING gin (inn gin_trgm_ops);
+    CREATE INDEX companies_active     ON companies (is_active);
+    
+    -- журнал обновлений справочника
+    CREATE TABLE company_sync_log (
+        id          BIGSERIAL PRIMARY KEY,
+        started_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        finished_at TIMESTAMPTZ,
+        inserted    INT DEFAULT 0,
+        updated     INT DEFAULT 0,
+        deactivated INT DEFAULT 0,
+        status      TEXT DEFAULT 'running',
+        message     TEXT
+    );
+    
+    -- ------------------------------------------------------------
+    -- Уровень «Основная информация»: баланс / финрезультаты / коэффициенты
+    -- ------------------------------------------------------------
+    CREATE TABLE financial_indicators (
+        id          BIGSERIAL PRIMARY KEY,
+        company_id  BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        group_code  TEXT   NOT NULL CHECK (group_code IN ('balance','results','ratios')),
+        ord         INT    NOT NULL,
+        label       TEXT   NOT NULL,
+        kind        TEXT   NOT NULL CHECK (kind IN ('money','pct','ratio')),
+        year        INT    NOT NULL,
+        value       NUMERIC(20,2)
+    );
+    CREATE INDEX fin_company_group ON financial_indicators (company_id, group_code, ord, year);
+    
+    -- ------------------------------------------------------------
+    -- Уровень «Лимиты»
+    -- ------------------------------------------------------------
+    CREATE TABLE limits (
+        id            BIGSERIAL PRIMARY KEY,
+        company_id    BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        product       TEXT   NOT NULL,
+        limit_amount  NUMERIC(20,2) NOT NULL,
+        used_amount   NUMERIC(20,2) NOT NULL,
+        currency      TEXT   NOT NULL DEFAULT 'RUB',
+        valid_until   DATE,
+        status        TEXT   NOT NULL DEFAULT 'active'
+    );
+    CREATE INDEX limits_company ON limits (company_id);
+    
+    -- ------------------------------------------------------------
+    -- Уровень «Сублимиты» — принадлежат конкретному лимиту
+    -- ------------------------------------------------------------
+    CREATE TABLE sublimits (
+        id            BIGSERIAL PRIMARY KEY,
+        limit_id      BIGINT NOT NULL REFERENCES limits(id) ON DELETE CASCADE,
+        company_id    BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        name          TEXT   NOT NULL,
+        amount        NUMERIC(20,2) NOT NULL,
+        used_amount   NUMERIC(20,2) NOT NULL,
+        tenor_months  INT
+    );
+    CREATE INDEX sublimits_company ON sublimits (company_id);
+    
+    -- ------------------------------------------------------------
+    -- Уровень «Информация о резервах»
+    -- ------------------------------------------------------------
+    CREATE TABLE reserves (
+        id            BIGSERIAL PRIMARY KEY,
+        company_id    BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        category      TEXT   NOT NULL,
+        quality_group TEXT,
+        amount        NUMERIC(20,2) NOT NULL,
+        rate_pct      NUMERIC(6,2),
+        calc_date     DATE   NOT NULL DEFAULT CURRENT_DATE
+    );
+    CREATE INDEX reserves_company ON reserves (company_id);
+  02_seed.sql: |
+    -- ============================================================
+    -- Демо-данные. setseed делает генерацию воспроизводимой.
+    -- ============================================================
+    SELECT setseed(0.42);
+    
+    INSERT INTO companies (name, inn, kpp, industry) VALUES
+    ('Магнит',                '2309085638', '230901001', 'Розничная торговля'),
+    ('Магнитогорский МК',      '7414003633', '745501001', 'Металлургия'),
+    ('Мосэнерго',              '7705035012', '770501001', 'Электроэнергетика'),
+    ('Московская биржа',       '7702077840', '770201001', 'Финансы'),
+    ('Норильский никель',      '8401005730', '840101001', 'Металлургия'),
+    ('Новатэк',                '6316031581', '631601001', 'Нефть и газ'),
+    ('Роснефть',               '7706107510', '770601001', 'Нефть и газ'),
+    ('Ростелеком',             '7707049388', '784001001', 'Телекоммуникации'),
+    ('Северсталь',             '3528000597', '352801001', 'Металлургия'),
+    ('Сегежа Групп',           '7714487093', '771401001', 'Лесная промышленность'),
+    ('Сибур Холдинг',          '7727547261', '772701001', 'Химия и нефтехимия'),
+    ('Татнефть',               '1644003838', '164401001', 'Нефть и газ'),
+    ('Транснефть',             '7706061801', '770601002', 'Транспорт'),
+    ('Фосагро',                '7736216869', '773601001', 'Химия и нефтехимия'),
+    ('Аэрофлот',               '7712040126', '771201001', 'Авиаперевозки'),
+    ('Алроса',                 '1433000147', '143301001', 'Добыча полезных ископаемых'),
+    ('Полюс',                  '2434000335', '243401001', 'Добыча полезных ископаемых'),
+    ('Позитив Текнолоджиз',    '7718668887', '771801001', 'ИТ и разработка ПО'),
+    ('Яндекс',                 '7736207543', '773601002', 'ИТ и разработка ПО'),
+    ('ММК-Метиз',              '7414002238', '741401001', 'Металлургия');
+    
+    -- ------------------------------------------------------------
+    -- Финансовые показатели: сначала считаем связный набор величин,
+    -- затем разворачиваем его в строки таблицы через LATERAL VALUES.
+    -- ------------------------------------------------------------
+    WITH scale AS (
+        SELECT id AS company_id, ((0.2 + random() * 3.0) * 8000000)::numeric AS s
+        FROM companies
+    ),
+    raw AS (
+        SELECT sc.company_id,
+               y.year,
+               round((sc.s * (0.82 + 0.09 * (y.year - 2021)) * (0.92 + random() * 0.22))::numeric, 2) AS revenue,
+               (0.60 + random() * 0.15)::numeric AS cost_share,
+               (0.05 + random() * 0.05)::numeric AS sell_share,
+               (0.80 + random() * 0.90)::numeric AS asset_mult,
+               (0.34 + random() * 0.20)::numeric AS eq_share,
+               (0.10 + random() * 0.12)::numeric AS lt_share,
+               (0.04 + random() * 0.05)::numeric AS cash_share,
+               (0.08 + random() * 0.09)::numeric AS inv_share,
+               (0.12 + random() * 0.11)::numeric AS recv_share,
+               (0.86 + random() * 0.12)::numeric AS pretax_k
+        FROM scale sc CROSS JOIN generate_series(2021, 2024) AS y(year)
+    ),
+    fin AS (
+        SELECT company_id, year, revenue,
+               round(revenue * cost_share, 2)                       AS cost,
+               round(revenue * sell_share, 2)                       AS selling,
+               round(revenue * asset_mult, 2)                       AS assets,
+               round(revenue * asset_mult * eq_share, 2)            AS equity,
+               round(revenue * asset_mult * lt_share, 2)            AS lt_liab,
+               round(revenue * asset_mult * cash_share, 2)          AS cash,
+               round(revenue * asset_mult * inv_share, 2)           AS inventory,
+               round(revenue * asset_mult * recv_share, 2)          AS receivables,
+               pretax_k
+        FROM raw
+    ),
+    calc AS (
+        SELECT f.*,
+               revenue - cost                                          AS gross,
+               revenue - cost - selling                                AS op_profit,
+               round((revenue - cost - selling) * pretax_k, 2)         AS pretax,
+               round((revenue - cost - selling) * pretax_k * 0.8, 2)   AS net,
+               cash + inventory + receivables                          AS current_assets,
+               assets - (cash + inventory + receivables)               AS noncurrent_assets,
+               assets - equity - lt_liab                               AS st_liab
+        FROM fin f
+    )
+    INSERT INTO financial_indicators (company_id, group_code, ord, label, kind, year, value)
+    SELECT c.company_id, v.group_code, v.ord, v.label, v.kind, c.year, v.value
+    FROM calc c
+    CROSS JOIN LATERAL (VALUES
+        ('balance', 1, 'Активы, всего',                    'money', c.assets),
+        ('balance', 2, 'Внеоборотные активы',              'money', c.noncurrent_assets),
+        ('balance', 3, 'Оборотные активы',                 'money', c.current_assets),
+        ('balance', 4, 'Запасы',                           'money', c.inventory),
+        ('balance', 5, 'Дебиторская задолженность',        'money', c.receivables),
+        ('balance', 6, 'Денежные средства и эквиваленты',  'money', c.cash),
+        ('balance', 7, 'Капитал и резервы',                'money', c.equity),
+        ('balance', 8, 'Долгосрочные обязательства',       'money', c.lt_liab),
+        ('balance', 9, 'Краткосрочные обязательства',      'money', c.st_liab),
+    
+        ('results', 1, 'Выручка',                          'money', c.revenue),
+        ('results', 2, 'Себестоимость продаж',             'money', c.cost),
+        ('results', 3, 'Валовая прибыль',                  'money', c.gross),
+        ('results', 4, 'Коммерческие и управленческие расходы', 'money', c.selling),
+        ('results', 5, 'Прибыль от продаж',                'money', c.op_profit),
+        ('results', 6, 'Прибыль до налогообложения',       'money', c.pretax),
+        ('results', 7, 'Чистая прибыль',                   'money', c.net),
+    
+        ('ratios',  1, 'Рентабельность продаж',            'pct',   round(c.net / NULLIF(c.revenue,0) * 100, 2)),
+        ('ratios',  2, 'Рентабельность активов',           'pct',   round(c.net / NULLIF(c.assets,0) * 100, 2)),
+        ('ratios',  3, 'Рентабельность капитала',          'pct',   round(c.net / NULLIF(c.equity,0) * 100, 2)),
+        ('ratios',  4, 'Текущая ликвидность',              'ratio', round(c.current_assets / NULLIF(c.st_liab,0), 2)),
+        ('ratios',  5, 'Коэффициент автономии',            'ratio', round(c.equity / NULLIF(c.assets,0), 2)),
+        ('ratios',  6, 'Долг / Чистая прибыль',            'ratio', round((c.lt_liab + c.st_liab) / NULLIF(c.net,0), 2))
+    ) AS v(group_code, ord, label, kind, value);
+    
+    -- ------------------------------------------------------------
+    -- Лимиты: суммы в диапазоне 1 млн — 1 млрд ₽
+    -- ------------------------------------------------------------
+    -- random() внутри LATERAL-подзапроса вычислился бы один раз на компанию,
+    -- поэтому суммы генерируем в CTE — там значение своё для каждой строки
+    WITH raw_limits AS (
+        SELECT c.id AS company_id,
+               p.product,
+               round((1000000 + random() * 999000000)::numeric, 2) AS limit_amount
+        FROM companies c
+        CROSS JOIN LATERAL (VALUES
+            ('Возобновляемая кредитная линия'),
+            ('Овердрафт'),
+            ('Банковские гарантии'),
+            ('Аккредитивы'),
+            ('Торговое финансирование')
+        ) AS p(product)
+    )
+    INSERT INTO limits (company_id, product, limit_amount, used_amount, valid_until)
+    SELECT company_id,
+           product,
+           limit_amount,
+           round(limit_amount * (0.15 + random() * 0.7)::numeric, 2),
+           CURRENT_DATE + ((90 + random() * 640)::int)
+    FROM raw_limits;
+    
+    INSERT INTO sublimits (limit_id, company_id, name, amount, used_amount, tenor_months)
+    SELECT l.id, l.company_id, s.name,
+           round(l.limit_amount * s.share::numeric, 2),
+           round(l.limit_amount * s.share::numeric * (0.1 + random() * 0.75)::numeric, 2),
+           (ARRAY[3,6,12,18,24,36])[1 + floor(random() * 6)::int]
+    FROM limits l
+    CROSS JOIN LATERAL (VALUES
+        ('Транш до 6 месяцев', 0.25),
+        ('Транш до 12 месяцев', 0.35),
+        ('Транш свыше 12 месяцев', 0.20)
+    ) AS s(name, share);
+    
+    INSERT INTO reserves (company_id, category, quality_group, amount, rate_pct)
+    SELECT c.id, r.category,
+           (ARRAY['I','II','III'])[1 + floor(random()*3)::int],
+           round((1000000 + random() * 400000000)::numeric, 2),
+           round((0.5 + random() * 20)::numeric, 2)
+    FROM companies c
+    CROSS JOIN LATERAL (VALUES
+        ('Резерв на возможные потери по ссудам'),
+        ('Резерв по условным обязательствам кредитного характера'),
+        ('Резерв под обесценение прочих активов')
+    ) AS r(category);
+    
+    INSERT INTO company_sync_log (finished_at, inserted, status, message)
+    SELECT now(), count(*), 'ok', 'initial seed' FROM companies;
+  03_search_index.sql: |
+    -- ============================================================
+    -- Миграция: быстрый поиск подсказок напрямую в Postgres.
+    -- Накатывается на существующую базу без пересоздания:
+    --   docker compose exec -T db psql -U abb -d abb < db/03_search_index.sql
+    -- ============================================================
+    
+    -- Нормализованное имя: без организационной формы, нижним регистром.
+    -- Пользователь печатает «магн», а в базе «ООО Магнит» — без этого
+    -- префиксный поиск не найдёт ничего.
+    ALTER TABLE companies
+        ADD COLUMN IF NOT EXISTS search_name TEXT
+        GENERATED ALWAYS AS (
+            lower(regexp_replace(name, '^(ООО|АО|ПАО|ЗАО|ГК|ИП|ОАО)\s+', ''))
+        ) STORED;
+    
+    -- btree с text_pattern_ops обслуживает LIKE 'префикс%' и, что важнее,
+    -- отдаёт строки уже отсортированными — LIMIT 8 останавливает скан
+    -- после восьмой строки вместо сортировки всех совпадений.
+    CREATE INDEX IF NOT EXISTS companies_search_prefix
+        ON companies (search_name text_pattern_ops);
+    
+    -- GIN на триграммах — для запасного пути: опечатки и совпадение в середине.
+    CREATE INDEX IF NOT EXISTS companies_search_trgm
+        ON companies USING gin (search_name gin_trgm_ops);
+    
+    ANALYZE companies;
+  04_groups.sql: |
+    -- ============================================================
+    -- Группы компаний, единый лимит и атрибуты карточки клиента.
+    --
+    -- Те же операции продублированы в ensure_schema() в app/main.py,
+    -- поэтому на работающей базе они применятся при старте API.
+    -- Файл нужен, чтобы схему можно было накатить и вручную:
+    --   docker compose exec -T db psql -U abb -d abb < db/04_groups.sql
+    -- ============================================================
+    
+    CREATE TABLE IF NOT EXISTS company_groups (
+        id                  BIGSERIAL PRIMARY KEY,
+        name                TEXT NOT NULL UNIQUE,
+        unified_limit       NUMERIC(20,2) NOT NULL DEFAULT 0,  -- сумма единого лимита
+        available_limit     NUMERIC(20,2) NOT NULL DEFAULT 0,  -- единый доступный лимит
+        utilized_limit      NUMERIC(20,2) NOT NULL DEFAULT 0,  -- единый утилизированный лимит
+        total_limit         NUMERIC(20,2) NOT NULL DEFAULT 0,  -- совокупный лимит
+        utilization_cap_pct NUMERIC(6,2)  NOT NULL DEFAULT 85  -- «крышка» по утилизации
+    );
+    
+    -- атрибутный состав карточки клиента
+    ALTER TABLE companies ADD COLUMN IF NOT EXISTS ogrn       VARCHAR(15);
+    ALTER TABLE companies ADD COLUMN IF NOT EXISTS address    TEXT;
+    ALTER TABLE companies ADD COLUMN IF NOT EXISTS okved      TEXT;
+    ALTER TABLE companies ADD COLUMN IF NOT EXISTS okved_name TEXT;
+    ALTER TABLE companies ADD COLUMN IF NOT EXISTS group_id   BIGINT REFERENCES company_groups(id);
+    CREATE INDEX IF NOT EXISTS companies_group ON companies (group_id);
+    
+    -- единый сублимит компании внутри группы
+    CREATE TABLE IF NOT EXISTS group_sublimits (
+        company_id       BIGINT PRIMARY KEY REFERENCES companies(id) ON DELETE CASCADE,
+        group_id         BIGINT NOT NULL REFERENCES company_groups(id) ON DELETE CASCADE,
+        sublimit_amount  NUMERIC(20,2) NOT NULL,   -- сумма единого сублимита
+        available_amount NUMERIC(20,2) NOT NULL,   -- единый доступный сублимит
+        utilized_amount  NUMERIC(20,2) NOT NULL    -- единый утилизированный сублимит
+    );
+    
+    -- ------------------------------------------------------------
+    -- Наполнение. Идемпотентно: повторный запуск ничего не дублирует.
+    -- Часть компаний намеренно оставлена без группы — интерфейс должен
+    -- показывать «Отсутствует».
+    -- ------------------------------------------------------------
+    INSERT INTO company_groups (name) VALUES
+        ('ГК «Северная сталь»'),
+        ('ГК «Энергоресурс»'),
+        ('ГК «Технополис»'),
+        ('ГК «Полярный ресурс»')
+    ON CONFLICT (name) DO NOTHING;
+    
+    UPDATE companies c SET group_id = g.id
+    FROM company_groups g
+    WHERE g.name = 'ГК «Северная сталь»'
+      AND c.inn IN ('3528000597', '7414003633', '7414002238')
+      AND c.group_id IS DISTINCT FROM g.id;
+    
+    UPDATE companies c SET group_id = g.id
+    FROM company_groups g
+    WHERE g.name = 'ГК «Энергоресурс»'
+      AND c.inn IN ('7705035012', '7706107510', '1644003838', '7706061801')
+      AND c.group_id IS DISTINCT FROM g.id;
+    
+    UPDATE companies c SET group_id = g.id
+    FROM company_groups g
+    WHERE g.name = 'ГК «Технополис»'
+      AND c.inn IN ('7736207543', '7718668887', '7707049388')
+      AND c.group_id IS DISTINCT FROM g.id;
+    
+    UPDATE companies c SET group_id = g.id
+    FROM company_groups g
+    WHERE g.name = 'ГК «Полярный ресурс»'
+      AND c.inn IN ('1433000147', '2434000335', '7736216869', '8401005730')
+      AND c.group_id IS DISTINCT FROM g.id;
+    
+    -- атрибуты: выводятся из id, поэтому повторный запуск даёт те же значения
+    UPDATE companies SET
+        ogrn = COALESCE(ogrn, '1' || lpad(((id * 7919 + 1000000) % 1000000000000)::text, 12, '0')),
+        address = COALESCE(address, (ARRAY[
+            '101000, г. Москва, ул. Мясницкая, д. 12, стр. 1',
+            '190000, г. Санкт-Петербург, наб. реки Мойки, д. 58',
+            '620014, г. Екатеринбург, ул. Малышева, д. 51',
+            '630007, г. Новосибирск, ул. Советская, д. 5',
+            '350000, г. Краснодар, ул. Красная, д. 176',
+            '455000, г. Магнитогорск, ул. Кирова, д. 93',
+            '162600, г. Череповец, ул. Мира, д. 30',
+            '423450, г. Альметьевск, ул. Ленина, д. 75'
+        ])[1 + (id % 8)]),
+        okved = COALESCE(okved, CASE
+            WHEN industry = 'Металлургия'                 THEN '24.10'
+            WHEN industry = 'Нефть и газ'                 THEN '06.10'
+            WHEN industry = 'Розничная торговля'          THEN '47.11'
+            WHEN industry = 'ИТ и разработка ПО'          THEN '62.01'
+            WHEN industry = 'Электроэнергетика'           THEN '35.11'
+            WHEN industry = 'Транспорт'                   THEN '49.50'
+            WHEN industry = 'Финансы'                     THEN '64.19'
+            WHEN industry = 'Химия и нефтехимия'          THEN '20.15'
+            WHEN industry = 'Авиаперевозки'               THEN '51.10'
+            WHEN industry = 'Лесная промышленность'       THEN '16.10'
+            ELSE '46.90' END),
+        okved_name = COALESCE(okved_name, industry)
+    WHERE ogrn IS NULL OR address IS NULL OR okved IS NULL OR okved_name IS NULL;
+    
+    -- единые сублимиты участников группы
+    INSERT INTO group_sublimits (company_id, group_id, sublimit_amount, available_amount, utilized_amount)
+    SELECT c.id, c.group_id,
+           amount,
+           round(amount - used, 2),
+           round(used, 2)
+    FROM companies c
+    CROSS JOIN LATERAL (
+        SELECT round((150000000 + (c.id * 37117 % 850000000))::numeric, 2) AS amount
+    ) a
+    CROSS JOIN LATERAL (
+        SELECT round(a.amount * (0.2 + (c.id * 13 % 60) / 100.0)::numeric, 2) AS used
+    ) u
+    WHERE c.group_id IS NOT NULL
+    ON CONFLICT (company_id) DO NOTHING;
+    
+    -- сводные значения группы считаются из сублимитов участников
+    UPDATE company_groups g SET
+        unified_limit   = totals.amount,
+        utilized_limit  = totals.used,
+        available_limit = totals.amount - totals.used,
+        total_limit     = round(totals.amount * 1.15, 2),
+        utilization_cap_pct = 85
+    FROM (
+        SELECT group_id,
+               sum(sublimit_amount) AS amount,
+               sum(utilized_amount) AS used
+        FROM group_sublimits GROUP BY group_id
+    ) totals
+    WHERE totals.group_id = g.id;
+  05_limits.sql: |
+    -- ============================================================
+    -- Раздел «Лимиты»: установленные лимиты по блокам и заявки.
+    --
+    -- Термины — по глоссарию Банка:
+    --   Единый сублимит — совокупность лимитов корпоративного и
+    --   инвестиционного блоков, установленных на конкретного клиента,
+    --   поэтому он не хранится, а считается суммой лимитов клиента.
+    --
+    -- Файл идемпотентен и выполняется при старте API вместе с остальными.
+    --   docker compose exec -T db psql -U abb -d abb < db/05_limits.sql
+    -- ============================================================
+    
+    -- ------------------------------------------------------------
+    -- 1. Установленные лимиты: блок, статус, совокупный лимит, «крышка»
+    -- ------------------------------------------------------------
+    ALTER TABLE limits ADD COLUMN IF NOT EXISTS block TEXT NOT NULL DEFAULT 'corporate';
+    ALTER TABLE limits ADD COLUMN IF NOT EXISTS total_limit NUMERIC(20,2);
+    ALTER TABLE limits ADD COLUMN IF NOT EXISTS utilization_cap_pct NUMERIC(6,2) NOT NULL DEFAULT 85;
+    
+    ALTER TABLE limits DROP CONSTRAINT IF EXISTS limits_block_check;
+    ALTER TABLE limits ADD CONSTRAINT limits_block_check
+        CHECK (block IN ('corporate', 'investment'));
+    
+    UPDATE limits SET total_limit = round(limit_amount * 1.15, 2) WHERE total_limit IS NULL;
+    
+    -- продукты инвестиционного блока для каждой компании
+    INSERT INTO limits (company_id, product, block, limit_amount, used_amount,
+                        currency, valid_until, status, total_limit, utilization_cap_pct)
+    SELECT c.id, p.product, 'investment',
+           round(amount, 2),
+           round(amount * (0.15 + (c.id * 17 % 55) / 100.0)::numeric, 2),
+           'RUB',
+           CURRENT_DATE + ((180 + c.id * 11 % 700)::int),
+           'active',
+           round(amount * 1.15, 2),
+           85
+    FROM companies c
+    CROSS JOIN LATERAL (VALUES
+        ('Синдицированный кредит'),
+        ('Проектное финансирование')
+    ) AS p(product)
+    CROSS JOIN LATERAL (
+        SELECT (200000000 + (c.id * 53) % 900000000)::numeric AS amount
+    ) AS a
+    WHERE NOT EXISTS (
+        SELECT 1 FROM limits l
+        WHERE l.company_id = c.id AND l.product = p.product
+    );
+    
+    -- ------------------------------------------------------------
+    -- 2. Заявки на рассмотрении
+    -- ------------------------------------------------------------
+    CREATE TABLE IF NOT EXISTS limit_applications (
+        id           BIGSERIAL PRIMARY KEY,
+        company_id   BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        product      TEXT NOT NULL,                     -- тип лимита
+        status       TEXT NOT NULL DEFAULT 'На рассмотрении',
+        currency     TEXT NOT NULL DEFAULT 'RUB',
+        term_months  INT,                               -- срок лимита
+        amount       NUMERIC(20,2),
+        comment      TEXT,
+        created_at   DATE NOT NULL DEFAULT CURRENT_DATE
+    );
+    CREATE INDEX IF NOT EXISTS limit_applications_company ON limit_applications (company_id);
+    
+    -- ------------------------------------------------------------
+    -- 3. Новые компании — чтобы заявки были и по уже заведённым
+    --    клиентам, и по недавно появившимся
+    -- ------------------------------------------------------------
+    INSERT INTO companies (name, inn, kpp, industry) VALUES
+    ('Балтийский терминал',  '7801567234', '780101001', 'Транспорт'),
+    ('Агроальянс Юг',        '2311456789', '231101001', 'Сельское хозяйство'),
+    ('Стройпуть',            '5407123456', '540701001', 'Строительство'),
+    ('Дальресурс',           '2540987654', '254001001', 'Добыча полезных ископаемых'),
+    -- длинные наименования: на них проверяется, что карточки верхней строки
+    -- подстраиваются под текст и не рвут его на части
+    ('Российские железные дороги',                              '7708503727', '770801001', 'Транспорт'),
+    ('Объединённая судостроительная корпорация',                '7838395215', '783801001', 'Судостроение'),
+    ('Новолипецкий металлургический комбинат',                  '4823006703', '482301001', 'Металлургия'),
+    ('Межрегиональная распределительная сетевая компания Центра','6901067107', '690101001', 'Электроэнергетика')
+    ON CONFLICT (inn) DO NOTHING;
+    
+    -- ------------------------------------------------------------
+    -- 4. Данные для компаний, у которых их ещё нет (новые из п.3).
+    --    Формулы те же, что в 02_seed.sql, но детерминированы по id.
+    -- ------------------------------------------------------------
+    WITH fresh AS (
+        SELECT c.id, ((c.id * 7919) % 100) / 100.0 AS k
+        FROM companies c
+        WHERE NOT EXISTS (SELECT 1 FROM financial_indicators f WHERE f.company_id = c.id)
+    ),
+    raw AS (
+        SELECT f.id AS company_id, y.year, f.k,
+               round((8000000 * (0.4 + f.k * 2.4) * (0.82 + 0.09 * (y.year - 2021)))::numeric, 2) AS revenue
+        FROM fresh f CROSS JOIN generate_series(2021, 2024) AS y(year)
+    ),
+    calc AS (
+        SELECT company_id, year, revenue,
+               round(revenue * (0.60 + k * 0.15)::numeric, 2)                     AS cost,
+               round(revenue * (0.05 + k * 0.05)::numeric, 2)                     AS selling,
+               round(revenue * (0.80 + k * 0.90)::numeric, 2)                     AS assets,
+               round(revenue * (0.80 + k * 0.90)::numeric * (0.34 + k * 0.20)::numeric, 2) AS equity,
+               round(revenue * (0.80 + k * 0.90)::numeric * (0.10 + k * 0.12)::numeric, 2) AS lt_liab,
+               round(revenue * (0.80 + k * 0.90)::numeric * (0.04 + k * 0.05)::numeric, 2) AS cash,
+               round(revenue * (0.80 + k * 0.90)::numeric * (0.08 + k * 0.09)::numeric, 2) AS inventory,
+               round(revenue * (0.80 + k * 0.90)::numeric * (0.12 + k * 0.11)::numeric, 2) AS receivables
+        FROM raw
+    ),
+    final AS (
+        SELECT *,
+               revenue - cost                                   AS gross,
+               revenue - cost - selling                         AS op_profit,
+               round((revenue - cost - selling) * 0.92, 2)      AS pretax,
+               round((revenue - cost - selling) * 0.92 * 0.8, 2) AS net,
+               cash + inventory + receivables                   AS current_assets,
+               assets - (cash + inventory + receivables)        AS noncurrent_assets,
+               assets - equity - lt_liab                        AS st_liab
+        FROM calc
+    )
+    INSERT INTO financial_indicators (company_id, group_code, ord, label, kind, year, value)
+    SELECT f.company_id, v.group_code, v.ord, v.label, v.kind, f.year, v.value
+    FROM final f
+    CROSS JOIN LATERAL (VALUES
+        ('balance', 1, 'Активы, всего',                    'money', f.assets),
+        ('balance', 2, 'Внеоборотные активы',              'money', f.noncurrent_assets),
+        ('balance', 3, 'Оборотные активы',                 'money', f.current_assets),
+        ('balance', 4, 'Запасы',                           'money', f.inventory),
+        ('balance', 5, 'Дебиторская задолженность',        'money', f.receivables),
+        ('balance', 6, 'Денежные средства и эквиваленты',  'money', f.cash),
+        ('balance', 7, 'Капитал и резервы',                'money', f.equity),
+        ('balance', 8, 'Долгосрочные обязательства',       'money', f.lt_liab),
+        ('balance', 9, 'Краткосрочные обязательства',      'money', f.st_liab),
+        ('results', 1, 'Выручка',                          'money', f.revenue),
+        ('results', 2, 'Себестоимость продаж',             'money', f.cost),
+        ('results', 3, 'Валовая прибыль',                  'money', f.gross),
+        ('results', 4, 'Коммерческие и управленческие расходы', 'money', f.selling),
+        ('results', 5, 'Прибыль от продаж',                'money', f.op_profit),
+        ('results', 6, 'Прибыль до налогообложения',       'money', f.pretax),
+        ('results', 7, 'Чистая прибыль',                   'money', f.net),
+        ('ratios',  1, 'Рентабельность продаж',            'pct',   round(f.net / NULLIF(f.revenue,0) * 100, 2)),
+        ('ratios',  2, 'Рентабельность активов',           'pct',   round(f.net / NULLIF(f.assets,0) * 100, 2)),
+        ('ratios',  3, 'Рентабельность капитала',          'pct',   round(f.net / NULLIF(f.equity,0) * 100, 2)),
+        ('ratios',  4, 'Текущая ликвидность',              'ratio', round(f.current_assets / NULLIF(f.st_liab,0), 2)),
+        ('ratios',  5, 'Коэффициент автономии',            'ratio', round(f.equity / NULLIF(f.assets,0), 2)),
+        ('ratios',  6, 'Долг / Чистая прибыль',            'ratio', round((f.lt_liab + f.st_liab) / NULLIF(f.net,0), 2))
+    ) AS v(group_code, ord, label, kind, value);
+    
+    -- лимиты корпоративного блока для новых компаний
+    INSERT INTO limits (company_id, product, block, limit_amount, used_amount,
+                        currency, valid_until, status, total_limit, utilization_cap_pct)
+    SELECT c.id, p.product, 'corporate',
+           round(amount, 2),
+           round(amount * (0.2 + (c.id * 29 % 60) / 100.0)::numeric, 2),
+           'RUB', CURRENT_DATE + ((120 + c.id * 7 % 600)::int), 'active',
+           round(amount * 1.15, 2), 85
+    FROM companies c
+    CROSS JOIN LATERAL (VALUES
+        ('Возобновляемая кредитная линия'),
+        ('Овердрафт'),
+        ('Банковские гарантии')
+    ) AS p(product)
+    CROSS JOIN LATERAL (SELECT (100000000 + (c.id * 41) % 700000000)::numeric AS amount) AS a
+    WHERE NOT EXISTS (SELECT 1 FROM limits l WHERE l.company_id = c.id AND l.block = 'corporate');
+    
+    -- резервы для новых компаний
+    INSERT INTO reserves (company_id, category, quality_group, amount, rate_pct)
+    SELECT c.id, r.category,
+           (ARRAY['I','II','III'])[1 + (c.id % 3)],
+           round((1000000 + (c.id * 137) % 400000000)::numeric, 2),
+           round((0.5 + (c.id * 7 % 190) / 10.0)::numeric, 2)
+    FROM companies c
+    CROSS JOIN LATERAL (VALUES
+        ('Резерв на возможные потери по ссудам'),
+        ('Резерв по условным обязательствам кредитного характера'),
+        ('Резерв под обесценение прочих активов')
+    ) AS r(category)
+    WHERE NOT EXISTS (SELECT 1 FROM reserves x WHERE x.company_id = c.id);
+    
+    -- транши по лимитам новых компаний
+    INSERT INTO sublimits (limit_id, company_id, name, amount, used_amount, tenor_months)
+    SELECT l.id, l.company_id, s.name,
+           round(l.limit_amount * s.share::numeric, 2),
+           round(l.limit_amount * s.share::numeric * (0.1 + (l.id * 13 % 70) / 100.0)::numeric, 2),
+           (ARRAY[3,6,12,18,24,36])[1 + (l.id % 6)]
+    FROM limits l
+    CROSS JOIN LATERAL (VALUES
+        ('Транш до 6 месяцев', 0.25),
+        ('Транш до 12 месяцев', 0.35),
+        ('Транш свыше 12 месяцев', 0.20)
+    ) AS s(name, share)
+    WHERE NOT EXISTS (SELECT 1 FROM sublimits x WHERE x.limit_id = l.id);
+    
+    -- ------------------------------------------------------------
+    -- 5. Заявки: и по давним клиентам, и по недавно заведённым
+    -- ------------------------------------------------------------
+    INSERT INTO limit_applications (company_id, product, status, currency, term_months, amount, comment, created_at)
+    SELECT c.id, a.product, 'На рассмотрении', 'RUB', a.term,
+           round((50000000 + (c.id * 97) % 450000000)::numeric, 2),
+           a.comment,
+           CURRENT_DATE - ((c.id * 3 % 45)::int)
+    FROM companies c
+    CROSS JOIN LATERAL (VALUES
+        ('Возобновляемая кредитная линия', 24, 'Ожидается решение кредитного комитета'),
+        ('Банковские гарантии',            12, 'Запрошены уточнения по обеспечению'),
+        ('Проектное финансирование',       60, 'На рассмотрении инвестиционного блока')
+    ) AS a(product, term, comment)
+    WHERE (c.id % 3 = 2 OR c.inn IN ('7801567234', '2311456789', '5407123456', '2540987654'))
+      AND NOT EXISTS (
+          SELECT 1 FROM limit_applications la
+          WHERE la.company_id = c.id AND la.product = a.product
+      );
+    
+    -- атрибутный состав для компаний, заведённых в этом файле:
+    -- 04_groups.sql выполняется раньше и их ещё не видит
+    UPDATE companies SET
+        ogrn = COALESCE(ogrn, '1' || lpad(((id * 7919 + 1000000) % 1000000000000)::text, 12, '0')),
+        address = COALESCE(address, (ARRAY[
+            '101000, г. Москва, ул. Мясницкая, д. 12, стр. 1',
+            '190000, г. Санкт-Петербург, наб. реки Мойки, д. 58',
+            '620014, г. Екатеринбург, ул. Малышева, д. 51',
+            '630007, г. Новосибирск, ул. Советская, д. 5',
+            '350000, г. Краснодар, ул. Красная, д. 176',
+            '455000, г. Магнитогорск, ул. Кирова, д. 93',
+            '162600, г. Череповец, ул. Мира, д. 30',
+            '423450, г. Альметьевск, ул. Ленина, д. 75'
+        ])[1 + (id % 8)]),
+        okved = COALESCE(okved, CASE
+            WHEN industry = 'Металлургия'           THEN '24.10'
+            WHEN industry = 'Транспорт'             THEN '49.50'
+            WHEN industry = 'Электроэнергетика'     THEN '35.11'
+            WHEN industry = 'Судостроение'          THEN '30.11'
+            WHEN industry = 'Сельское хозяйство'    THEN '01.11'
+            WHEN industry = 'Строительство'         THEN '41.20'
+            ELSE '46.90' END),
+        okved_name = COALESCE(okved_name, industry)
+    WHERE ogrn IS NULL OR address IS NULL OR okved IS NULL OR okved_name IS NULL;
+    
+    ANALYZE limits;
+    ANALYZE limit_applications;
+  06_reserves.sql: |
+    -- ============================================================
+    -- Раздел «Информация о резервах»: позиции по стандартам учёта.
+    --
+    -- Два блока — РСБУ и МСФО. Внутри каждого: название продукта,
+    -- валюта лимита, сумма лимита, срок лимита, сумма резерва.
+    -- Позиции выводятся из установленных лимитов клиента, поэтому
+    -- сумма лимита в резервах всегда совпадает с разделом «Лимиты».
+    --
+    -- Файл идемпотентен и применяется при старте API.
+    --   docker compose exec -T db psql -U abb -d abb < db/06_reserves.sql
+    -- ============================================================
+    
+    CREATE TABLE IF NOT EXISTS reserve_positions (
+        id             BIGSERIAL PRIMARY KEY,
+        company_id     BIGINT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+        standard       TEXT   NOT NULL CHECK (standard IN ('rsbu', 'ifrs')),
+        product        TEXT   NOT NULL,                 -- название продукта
+        currency       TEXT   NOT NULL DEFAULT 'RUB',   -- валюта лимита
+        limit_amount   NUMERIC(20,2) NOT NULL,          -- сумма лимита
+        term_months    INT,                             -- срок лимита
+        reserve_amount NUMERIC(20,2) NOT NULL,          -- сумма резерва
+        calc_date      DATE NOT NULL DEFAULT CURRENT_DATE
+    );
+    CREATE INDEX IF NOT EXISTS reserve_positions_company
+        ON reserve_positions (company_id, standard);
+    
+    -- ------------------------------------------------------------
+    -- Наполнение: три крупнейших лимита клиента в каждом стандарте.
+    -- Ставка резервирования по МСФО выше — оценка ожидаемых потерь
+    -- строже, чем нормативный расчёт по РСБУ.
+    -- ------------------------------------------------------------
+    WITH ranked AS (
+        SELECT l.*,
+               row_number() OVER (PARTITION BY l.company_id ORDER BY l.limit_amount DESC) AS rn
+        FROM limits l
+    )
+    INSERT INTO reserve_positions (company_id, standard, product, currency,
+                                   limit_amount, term_months, reserve_amount)
+    SELECT r.company_id, s.standard, r.product, r.currency,
+           r.limit_amount,
+           (ARRAY[6, 12, 18, 24, 36])[1 + (r.id % 5)],
+           round(r.limit_amount * (s.base + (r.id % 8) / 100.0)::numeric, 2)
+    FROM ranked r
+    CROSS JOIN (VALUES ('rsbu', 0.03), ('ifrs', 0.05)) AS s(standard, base)
+    WHERE r.rn <= 3
+      AND NOT EXISTS (
+          SELECT 1 FROM reserve_positions p
+          WHERE p.company_id = r.company_id
+            AND p.standard = s.standard
+            AND p.product = r.product
+      );
+    
+    ANALYZE reserve_positions;

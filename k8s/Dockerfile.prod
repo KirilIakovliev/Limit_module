@@ -1,0 +1,55 @@
+# ============================================================
+# Образ приложения. Собирается НА ТЕСТОВОЙ МАШИНЕ, внутри контура.
+#
+# Два отличия от api/Dockerfile:
+#   1. фронтенд (web/) и миграции (db/) вшиты в образ, а не
+#      примонтированы томом — узел кластера не видит вашу папку;
+#   2. пакеты ставятся из Artifactory, а не с pypi.org.
+#
+# Сборка:
+#   docker build -f k8s/Dockerfile.prod \
+#     --build-arg PIP_INDEX_URL=https://artifactory.akbars.tech/artifactory/api/pypi/pypi/simple \
+#     --build-arg PIP_TRUSTED_HOST=artifactory.akbars.tech \
+#     -t abb-limit-module:0.2.0 .
+#
+# Точный путь к зеркалу PyPI уточните у инфраструктуры: у Artifactory
+# он зависит от имени репозитория (pypi, pypi-remote, pypi-virtual...).
+# Проверить до сборки:
+#   curl -sI https://artifactory.akbars.tech/artifactory/api/pypi/pypi/simple/fastapi/
+# ============================================================
+ARG BASE_IMAGE=python:3.12-slim
+FROM ${BASE_IMAGE}
+
+# Зеркало пакетов. Значения по умолчанию пустые: если их не передать,
+# pip пойдёт на pypi.org и в закрытом контуре просто не достучится —
+# это лучше, чем молча собрать образ не из того источника.
+ARG PIP_INDEX_URL=""
+ARG PIP_TRUSTED_HOST=""
+
+WORKDIR /srv
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    WEB_DIR=/srv/web \
+    GROUPS_SQL=/srv/db/04_groups.sql \
+    LIMITS_SQL=/srv/db/05_limits.sql \
+    RESERVES_SQL=/srv/db/06_reserves.sql
+
+# Зависимости отдельным слоем: правка кода не переустанавливает пакеты
+COPY api/requirements.txt .
+RUN pip install --no-cache-dir \
+        ${PIP_INDEX_URL:+--index-url ${PIP_INDEX_URL}} \
+        ${PIP_TRUSTED_HOST:+--trusted-host ${PIP_TRUSTED_HOST}} \
+        -r requirements.txt
+
+# Код, фронтенд и миграции — внутрь образа
+COPY api/app ./app
+COPY web ./web
+COPY db ./db
+
+# Непривилегированный пользователь: под в кластере не должен работать от root
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin abb \
+    && chown -R 10001:10001 /srv
+USER 10001
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

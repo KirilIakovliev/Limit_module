@@ -1,0 +1,48 @@
+# ============================================================
+# Сетевые политики. Применять ПОСЛЕ того, как всё заработало:
+# при отладке они добавляют ещё один слой, в котором можно
+# запутаться.
+#
+# Требуют CNI с поддержкой NetworkPolicy. Flannel её НЕ поддерживает —
+# с ним эти манифесты применятся, но ничего не сделают. Для реального
+# ограничения нужен Calico или Cilium.
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-only-from-api
+  namespace: abb
+spec:
+  podSelector:
+    matchLabels:
+      app: abb-postgres
+  policyTypes: ["Ingress"]
+  ingress:
+    # К базе имеет право обращаться только API — больше никто,
+    # включая поды из других namespace
+    - from:
+        - podSelector:
+            matchLabels:
+              app: abb-api
+      ports:
+        - protocol: TCP
+          port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-from-traefik-only
+  namespace: abb
+spec:
+  podSelector:
+    matchLabels:
+      app: abb-api
+  policyTypes: ["Ingress"]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: traefik
+      ports:
+        - protocol: TCP
+          port: 8000

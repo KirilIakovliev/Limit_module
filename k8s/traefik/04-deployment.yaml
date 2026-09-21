@@ -1,0 +1,83 @@
+# ============================================================
+# Traefik как Deployment.
+#
+# Почему не DaemonSet: на тестовом кластере из 1–3 узлов достаточно
+# одной реплики, а NodePort и так открывает порт на каждом узле.
+# DaemonSet с hostPort понадобится, когда захочется слушать 80/443
+# напрямую без NodePort.
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traefik
+  namespace: traefik
+  labels:
+    app.kubernetes.io/name: traefik
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: traefik
+    spec:
+      serviceAccountName: traefik
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+      containers:
+        - name: traefik
+          image: traefik:v3.1.2
+          # ОБЯЗАТЕЛЬНО для закрытого контура: образ уже импортирован
+          # в containerd, тянуть его неоткуда. При Always под встанет
+          # в ImagePullBackOff.
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--configFile=/config/traefik.yml"
+          ports:
+            - name: web
+              containerPort: 8000
+            - name: websecure
+              containerPort: 8443
+            - name: traefik
+              containerPort: 9000
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: traefik
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: traefik
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: traefik-config
+        - name: tmp
+          emptyDir: {}

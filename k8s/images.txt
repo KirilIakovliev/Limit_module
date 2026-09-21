@@ -1,0 +1,29 @@
+# Базовые образы, которые нужно перенести в контур файлами.
+#
+# Образ приложения здесь НЕ указан: он собирается на самой тестовой
+# машине (см. scripts/03-build-app-image.sh). Переносим только то,
+# что собрать нельзя.
+#
+# Версии зафиксированы: latest в закрытом контуре недопустим —
+# нечем проверить, что приехало именно то, что ожидалось.
+
+# --- управляющие компоненты кластера, kubeadm v1.30.3 ---
+registry.k8s.io/kube-apiserver:v1.30.3
+registry.k8s.io/kube-controller-manager:v1.30.3
+registry.k8s.io/kube-scheduler:v1.30.3
+registry.k8s.io/kube-proxy:v1.30.3
+registry.k8s.io/coredns/coredns:v1.11.1
+registry.k8s.io/pause:3.9
+registry.k8s.io/etcd:3.5.15-0
+
+# --- сеть ---
+docker.io/flannel/flannel:v0.25.5
+docker.io/flannel/flannel-cni-plugin:v1.5.1-flannel1
+
+# --- ingress ---
+docker.io/traefik:v3.1.2
+
+# --- приложение ---
+docker.io/postgres:16-alpine
+# база для сборки образа приложения прямо на тестовой машине
+docker.io/python:3.12-slim

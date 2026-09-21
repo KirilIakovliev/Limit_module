@@ -1,0 +1,66 @@
+# ============================================================
+# Конфигурация kubeadm для закрытого контура.
+#
+# Запуск на первом control-plane узле:
+#   kubeadm init --config kubeadm-config.yaml --upload-certs
+#
+# Ключевое для air-gap: imageRepository не трогаем, но все образы
+# уже импортированы в containerd, поэтому kubeadm ничего не тянет.
+# Проверить заранее: kubeadm config images list --kubernetes-version v1.30.3
+# ============================================================
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+localAPIEndpoint:
+  # ЗАМЕНИТЬ на адрес control-plane узла
+  advertiseAddress: "10.149.35.70"
+  bindPort: 6443
+nodeRegistration:
+  criSocket: unix:///run/containerd/containerd.sock
+  kubeletExtraArgs:
+    # На одноузловом тесте это не нужно, но на многоузловом
+    # kubelet должен анонсировать правильный адрес
+    node-ip: "10.149.35.70"
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+kubernetesVersion: v1.30.3
+clusterName: abb-test
+imageRepository: registry.k8s.io
+networking:
+  # 10.244.0.0/16 — значение по умолчанию для Flannel.
+  # Менять можно, но тогда править и в kube-flannel.yaml.
+  podSubnet: "10.244.0.0/16"
+  serviceSubnet: "10.96.0.0/12"
+  dnsDomain: cluster.local
+apiServer:
+  # ЗАМЕНИТЬ: имена и адреса, по которым будут обращаться к API
+  certSANs:
+    - "10.149.35.70"
+    - "abb-k8s.local"
+  extraArgs:
+    # Журнал обращений к API — для банка обязателен
+    audit-log-path: /var/log/kubernetes/audit.log
+    audit-log-maxage: "30"
+controllerManager:
+  extraArgs:
+    bind-address: 0.0.0.0
+scheduler:
+  extraArgs:
+    bind-address: 0.0.0.0
+etcd:
+  local:
+    dataDir: /var/lib/etcd
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: systemd
+# В закрытом контуре тянуть образы неоткуда: если образа нет на узле,
+# под должен падать сразу и понятно, а не висеть в попытках скачать.
+imagePullProgressDeadline: 1m
+serializeImagePulls: false
+---
+apiVersion: kubeproxy.config.k8s.io/v1alpha1
+kind: KubeProxyConfiguration
+# ipvs быстрее iptables на большом числе сервисов; для теста
+# разница незаметна, но и вреда нет. Требует модуль ip_vs.
+mode: "iptables"

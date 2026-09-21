@@ -1,0 +1,651 @@
+/* ============================================================
+   Лимитный модуль АББ
+   ============================================================ */
+:root{
+  --white:#ffffff;
+  --ink:#0F1D2B;
+  --ink-2:#44586C;
+  --ink-3:#8496A8;
+  --line:#E2E8EF;
+  --line-2:#F2F6FA;
+
+  --navy:#123A63;
+  --blue-700:#1A5185;
+  --blue-600:#2A6CA8;
+  --blue-400:#4E93C9;
+  --blue-tint:#EFF5FB;
+  --blue-tint-2:#DCE9F5;
+
+  --red:#B23B2C;
+  --amber:#B7791F;
+  --green:#1F7A4C;
+
+  /* Градиент кнопки «Поиск» — по горизонтали, кнопка широкая и низкая */
+  --gradient-primary:linear-gradient(100deg,#123A63 0%,#22608F 55%,#4E93C9 100%);
+  /* Градиент активной вкладки — почти вертикальный: левый и правый край
+     получаются одного тона, поэтому рамка выглядит одинаковой со всех сторон */
+  --gradient-tab:linear-gradient(168deg,#1B4E80 0%,#2A6CA8 100%);
+  --gradient-export:linear-gradient(100deg,#2A6CA8 0%,#5257B4 52%,#7E51B8 100%);
+
+  --shadow-soft:0 1px 2px rgba(15,29,43,.05), 0 4px 14px rgba(15,29,43,.06);
+  --shadow-lifted:0 2px 6px rgba(15,29,43,.07), 0 18px 44px rgba(15,29,43,.10);
+  /* Тень повторяет форму вкладки: небольшой сдвиг вправо-вниз, скругление
+     наследуется от border-radius самого элемента, размытие умеренное —
+     иначе вместо тени получается размытое пятно без формы */
+  --shadow-tab:2px 3px 6px rgba(18,58,99,.14), 4px 8px 16px rgba(18,58,99,.16);
+  --shadow-tab-hover:3px 4px 8px rgba(18,58,99,.18), 6px 12px 22px rgba(18,58,99,.20);
+
+  --radius-pill:999px;
+  --radius-card:14px;
+  --ease:cubic-bezier(.22,.7,.2,1);
+
+  --search-width:680px;
+  --tabs-width:1240px;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--white);
+  color:var(--ink-2);
+  font-family:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
+
+/* ============================================================
+   Сцена и подъём поисковой строки
+   ============================================================ */
+.stage{max-width:1400px;margin:0 auto;padding:32px 24px 120px}
+/* transform создаёт контекст наложения, поэтому z-index подсказок
+   действует только внутри .hero. Без явного порядка результаты поиска
+   (тоже с transform) рисуются поверх выпадающего списка. */
+.hero{
+  position:relative;z-index:20;
+  transform:translateY(26vh);transition:transform .78s var(--ease);will-change:transform;
+}
+body.is-searching .hero{transform:translateY(0)}
+
+.page-title-wrap{
+  display:grid;grid-template-rows:1fr;
+  transition:grid-template-rows .6s var(--ease), opacity .35s ease;
+}
+.page-title-inner{overflow:hidden;text-align:center}
+body.is-searching .page-title-wrap{grid-template-rows:0fr;opacity:0}
+
+.page-title{
+  font-family:Manrope,sans-serif;font-weight:800;
+  font-size:clamp(28px,4.6vw,42px);letter-spacing:-.03em;
+  color:var(--ink);margin:0 0 10px;
+}
+.page-title em{
+  font-style:normal;
+  background:var(--gradient-primary);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.page-subtitle{margin:0 0 34px;color:var(--ink-3);font-size:15px}
+
+/* ============================================================
+   Поисковая строка
+   ============================================================ */
+.search-area{position:relative;max-width:var(--search-width);margin:0 auto}
+.search-field{
+  display:flex;align-items:center;gap:10px;
+  height:60px;padding:0 8px 0 20px;
+  background:var(--white);
+  border:1px solid var(--line);border-radius:var(--radius-pill);
+  box-shadow:var(--shadow-soft);
+  transition:box-shadow .22s ease,border-color .22s ease;
+}
+.search-field:hover{box-shadow:var(--shadow-lifted)}
+.search-field.is-focused{border-color:var(--blue-tint-2);box-shadow:var(--shadow-lifted)}
+.search-icon{flex:none;color:var(--ink-3)}
+
+#searchInput{
+  flex:1;min-width:0;height:100%;
+  border:0;outline:0;background:transparent;
+  font-family:Inter,sans-serif;font-size:17px;color:var(--ink);
+}
+#searchInput::placeholder{color:#A6B4C2}
+
+.clear-button{
+  flex:none;width:30px;height:30px;display:none;
+  align-items:center;justify-content:center;
+  border:0;border-radius:50%;background:transparent;
+  color:var(--ink-3);font-size:18px;line-height:1;
+}
+.clear-button:hover{background:var(--line-2);color:var(--ink)}
+.search-field.has-text .clear-button{display:flex}
+
+.search-button{
+  flex:none;height:46px;padding:0 30px;
+  border:0;border-radius:var(--radius-pill);
+  background:var(--gradient-primary);background-size:150% 100%;background-position:0% 50%;
+  color:#fff;font-family:Manrope,sans-serif;font-weight:700;font-size:15px;
+  box-shadow:0 2px 10px rgba(18,58,99,.26);
+  transition:background-position .45s var(--ease),box-shadow .25s ease,transform .12s ease,opacity .2s ease;
+}
+.search-button:hover:not(:disabled){background-position:100% 50%;box-shadow:0 4px 18px rgba(18,58,99,.32)}
+.search-button:active:not(:disabled){transform:translateY(1px)}
+.search-button:disabled{opacity:.42;cursor:not-allowed;box-shadow:none}
+
+.search-hint{height:20px;margin:10px 4px 0;font-size:12.5px;color:var(--ink-3);text-align:center;transition:opacity .25s ease}
+body.is-searching .search-hint{opacity:0}
+
+/* ============================================================
+   Подсказки
+   ============================================================ */
+.suggestions{
+  position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:30;
+  background:var(--white);border:1px solid var(--line);border-radius:var(--radius-card);
+  box-shadow:var(--shadow-lifted);padding:6px;display:none;max-height:340px;overflow-y:auto;
+  text-align:left;
+}
+.suggestions.is-open{display:block}
+.suggestion{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;cursor:pointer}
+.suggestion[aria-selected="true"]{background:var(--blue-tint)}
+.suggestion-dot{flex:none;width:8px;height:8px;border-radius:50%;background:var(--gradient-primary);opacity:.22}
+.suggestion[aria-selected="true"] .suggestion-dot{opacity:1}
+.suggestion-name{font-weight:500;color:var(--ink);font-size:15px;display:block}
+.suggestion-name b{font-weight:700;color:var(--blue-700)}
+.suggestion-meta{margin-top:1px;font-size:12.5px;color:var(--ink-3);display:block}
+.suggestion-meta b{font-weight:700;color:var(--blue-700)}
+.suggestions-empty{padding:14px 12px;font-size:14px;color:var(--ink-3)}
+
+/* ============================================================
+   Обработка и ошибки
+   ============================================================ */
+.result-panel{
+  position:relative;z-index:1;
+  margin-top:44px;opacity:0;transform:translateY(14px);
+  transition:opacity .5s ease .15s,transform .5s var(--ease) .15s;
+  pointer-events:none;
+}
+.result-panel.is-visible{opacity:1;transform:none;pointer-events:auto}
+
+.processing{display:none;flex-direction:column;align-items:center;padding:56px 0 24px}
+.processing.is-visible{display:flex}
+.processing-ring{position:relative;width:148px;height:148px;display:grid;place-items:center}
+.processing-ring::before,.processing-ring::after{content:"";position:absolute;inset:0;border-radius:50%}
+.processing-ring::before{border:4px solid var(--line-2)}
+.processing-ring::after{
+  background:conic-gradient(from 0deg,transparent 0deg 190deg,var(--navy) 250deg,var(--blue-400) 358deg,transparent 360deg);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 4px));
+  mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 4px));
+  animation:spin 1.15s linear infinite;
+}
+.processing-ring span{font-family:Manrope,sans-serif;font-weight:700;font-size:15px;color:var(--navy)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.processing p{margin:20px 0 0;font-size:13px;color:var(--ink-3)}
+
+.error-box{
+  display:none;max-width:var(--search-width);margin:8px auto 0;padding:18px 20px;
+  border:1px solid #EFD4CF;border-radius:var(--radius-card);background:#FDF5F3;
+  color:#8A3524;font-size:14px;text-align:center;
+}
+.error-box.is-visible{display:block}
+.error-box button{margin-top:10px}
+
+/* ============================================================
+   ДЕРЕВО ВКЛАДОК — по центру, вкладки одной ширины
+   ============================================================ */
+.tab-level{
+  display:grid;grid-template-rows:0fr;
+  transition:grid-template-rows .48s var(--ease),opacity .35s ease;
+  opacity:0;
+}
+.tab-level > *{overflow:hidden;min-height:0}
+.tab-level.is-open{grid-template-rows:1fr;opacity:1}
+
+/* ------------------------------------------------------------
+   Признак раскрытого уровня — короткая горизонтальная черта.
+
+   Она стоит у самого края контейнера (слева для ветки «Компания»,
+   справа для «Событий») и не зависит ни от того, какая карточка
+   раскрыта, ни от ширины строки: у всех уровней одна и та же позиция.
+   По вертикали — ровно посередине промежутка между строками.
+
+   Поле --marker-gutter резервирует под неё место, поэтому черта
+   никогда не наезжает на карточки.
+   ------------------------------------------------------------ */
+.tab-tree{position:relative;--marker-gutter:76px;--row-capacity:5}
+
+/* промежуток между строками: 18px тени предыдущей + padding-top ветки */
+.tab-branch{position:relative;padding-top:34px}
+
+/* ------------------------------------------------------------
+   Стрелки у первой строки: показывают, в какую сторону её ещё
+   можно сдвинуть. Медленно пульсируют; та, в сторону которой
+   строка уже уехала, гаснет и возвращается вместе со строкой.
+   ------------------------------------------------------------ */
+.row-arrow{
+  position:absolute;z-index:2;
+  width:16px;height:16px;
+  color:var(--blue-400);
+  pointer-events:none;
+  opacity:.55;
+  /* left и top проставляет tab-tree.js по фактическому краю карточек,
+     поэтому стрелки едут вместе со строкой */
+  transition:opacity .4s ease, left .55s var(--ease);
+  animation:arrowPulse 3.4s ease-in-out infinite;
+  animation-delay:0s;
+}
+.row-arrow svg{width:100%;height:100%;display:block}
+
+/* Строка сдвинута: пульсация останавливается у обеих стрелок,
+   а та, в сторону которой строка уже уехала, гаснет.
+   В центре анимация запускается заново одновременно у обеих —
+   поэтому пульсация синхронна. */
+.tab-tree.branch-left .row-arrow,
+.tab-tree.branch-right .row-arrow{animation:none;opacity:.55}
+.tab-tree.branch-left .row-arrow--left,
+.tab-tree.branch-right .row-arrow--right{opacity:0}
+
+@keyframes arrowPulse{
+  0%,100%{opacity:.14}
+  50%{opacity:.72}
+}
+
+.tab-branch::before{
+  content:"";position:absolute;top:10px;   /* середина промежутка 18+34+4 */
+  width:56px;height:2px;
+  background:var(--blue-400);border-radius:2px;opacity:.55;
+  display:none;
+}
+.tab-tree.branch-left .tab-branch::before{display:block;left:0}
+.tab-tree.branch-right .tab-branch::before{display:block;right:0}
+
+.tab-row{
+  /* базовая ширина карточки: доля самой ёмкой строки */
+  --tab-basis:calc((100% - (var(--row-capacity) - 1) * 12px) / var(--row-capacity));
+  display:flex;justify-content:center;align-items:stretch;
+  gap:12px;flex-wrap:wrap;
+  /* ширина ограничена ещё и полями под черту-указатель, иначе
+     строка из пяти карточек не помещается между ними и обрезается */
+  max-width:min(var(--tabs-width), calc(100% - 2 * var(--marker-gutter)));
+  margin:0 auto;
+  padding:4px 6px 18px;      /* запас снизу и справа под смещённую тень */
+  transform:translateX(0);
+  transition:transform .55s var(--ease);
+}
+
+.tab{
+  position:relative;
+  /* ширина одинакова во всех строках; сжимается, если соседняя
+     карточка потребовала больше места под длинное название */
+  flex:0 1 var(--tab-basis);
+  min-width:var(--tab-min, 0px);max-width:none;
+  display:flex;flex-direction:column;justify-content:center;gap:3px;
+  min-height:76px;padding:12px 18px;
+  text-align:center;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:var(--white);
+  background-clip:padding-box;   /* фон не подкрашивает рамку */
+  box-shadow:0 1px 2px rgba(15,29,43,.04);
+  transition:border-color .2s ease,background .2s ease,box-shadow .25s ease,transform .2s var(--ease);
+}
+.tab-level.is-open .tab{animation:tabAppear .38s var(--ease) both}
+.tab:hover:not(.is-static):not(.is-active){border-color:var(--blue-tint-2);background:var(--blue-tint)}
+
+.tab-label{
+  font-family:Manrope,sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+}
+.tab-value{
+  font-family:Manrope,sans-serif;font-weight:700;font-size:15px;
+  color:var(--ink);letter-spacing:-.01em;line-height:1.25;
+  overflow-wrap:break-word;      /* длинное название переносится, а не вылезает */
+}
+
+/* Ширина верхней строки подбирается замером: tab-tree.js на мгновение
+   разворачивает карточки в одну строку, берёт самую широкую и ставит эту
+   ширину всем карточкам строки через --tab-min. Поэтому и наименование,
+   и ИНН, и КПП умещаются в одну строку, а карточки остаются одинаковыми. */
+.tab-row.is-measuring-whole .tab,
+.tab-row.is-measuring-word .tab{flex:0 0 auto;min-width:0}
+.tab-row.is-measuring-whole .tab{width:max-content}
+.tab-row.is-measuring-word .tab{width:min-content}
+.tab-row.is-measuring-whole .tab-label,
+.tab-row.is-measuring-whole .tab-value,
+.tab-row.is-measuring-whole .tab-note{white-space:nowrap}
+
+/* ------------------------------------------------------------
+   Верхняя строка — не набор карточек, а сплошная полоса:
+
+     [ Компания ] │ [ ИНН   КПП ] │ [ События ]
+
+   Боковые вкладки без рамки и фона, реквизиты посередине залиты
+   серым, границы между частями — короткие вертикальные линии.
+   У нажатой вкладки скругляется только внешний угол: слева у
+   «Компании», справа у «Событий».
+   ------------------------------------------------------------ */
+#companyTabs{gap:0}
+
+#companyTabs > .tab{
+  flex:0 1 auto;
+  min-width:var(--tab-min, var(--tab-basis));
+  border:0;background:transparent;box-shadow:none;border-radius:0;
+}
+#companyTabs > .tab:hover:not(.is-active){background:var(--blue-tint)}
+
+#companyTabs > .tab.is-active{
+  background:var(--gradient-tab);
+  box-shadow:var(--shadow-tab);
+}
+#companyTabs > .tab.is-active:hover{background:linear-gradient(168deg,#123A63 0%,#1E5588 100%)}
+
+.tab--company.is-active{border-radius:14px 0 0 14px}
+.tab--events.is-active{border-radius:0 14px 14px 0}
+
+/* реквизиты: один серый блок с разделителями по краям */
+.tab-pair{
+  position:relative;flex:0 0 auto;
+  display:flex;align-items:stretch;
+  background:var(--line-2);
+}
+.tab-pair::before,.tab-pair::after{
+  content:"";position:absolute;top:24%;height:52%;width:1px;
+  background:var(--line);
+}
+.tab-pair::before{left:0}
+.tab-pair::after{right:0}
+
+.tab-cell{
+  display:flex;flex-direction:column;justify-content:center;gap:3px;
+  min-height:76px;padding:12px 20px;text-align:center;
+}
+.tab-cell .tab-value{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.tab-note{font-size:12px;color:var(--ink-3);line-height:1.3}
+.tab-flag{
+  font-style:normal;font-weight:500;font-size:9.5px;letter-spacing:.04em;
+  text-transform:none;color:var(--amber);
+  padding:1px 6px;margin-left:4px;border-radius:var(--radius-pill);
+  background:#FDF6E7;white-space:nowrap;
+}
+.tab.is-active .tab-flag{background:rgba(255,255,255,.16);color:rgba(255,255,255,.86)}
+
+/* активная вкладка: рамка одного цвета со всех сторон, тень без бокового смещения */
+.tab.is-active{
+  background:var(--gradient-tab);
+  border-color:#1B4E80;
+  box-shadow:var(--shadow-tab);
+}
+/* наведение на раскрытую вкладку — темнее, а не светлее: белый текст
+   должен оставаться читаемым */
+.tab.is-active:hover{
+  background:linear-gradient(168deg,#123A63 0%,#1E5588 100%);
+  border-color:#0F3559;
+  box-shadow:var(--shadow-tab-hover);
+}
+.tab.is-active .tab-label{color:rgba(255,255,255,.70)}
+.tab.is-active .tab-value{color:#fff}
+.tab.is-active .tab-note{color:rgba(255,255,255,.80)}
+
+/* информационные вкладки ИНН / КПП — не кликабельны */
+.tab.is-static{background:var(--line-2);border-color:transparent;cursor:default;box-shadow:none}
+.tab.is-static .tab-value{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+
+/* вкладка «События» с критичными отклонениями */
+.tab.has-alert:not(.is-active){border-color:#F0D9C8;background:#FEF8F3}
+.tab.has-alert:not(.is-active) .tab-value{color:var(--amber)}
+
+@keyframes tabAppear{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   Контент
+   ============================================================ */
+.panel-content{margin-top:20px;animation:contentAppear .4s ease both}
+.panel-content:empty{margin:0}
+@keyframes contentAppear{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+.content-head{
+  display:flex;flex-wrap:wrap;align-items:baseline;justify-content:center;
+  gap:8px 18px;padding-bottom:14px;border-bottom:1px solid var(--line);
+}
+.content-head h2{font-family:Manrope,sans-serif;font-weight:700;font-size:19px;letter-spacing:-.02em;color:var(--ink);margin:0}
+.content-head .content-meta{font-size:13px;color:var(--ink-3)}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:18px 0 6px}
+.card{padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius-card);background:#fff}
+.card .card-key{font-size:12px;color:var(--ink-3);letter-spacing:.02em}
+.card .card-value{margin-top:6px;font-family:Manrope,sans-serif;font-weight:700;font-size:20px;color:var(--ink);font-variant-numeric:tabular-nums}
+.card.is-accent{background:var(--blue-tint);border-color:transparent}
+.card.is-accent .card-value{color:var(--navy)}
+
+.usage-bar{margin-top:10px;height:5px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.usage-bar i{display:block;height:100%;border-radius:3px;background:var(--gradient-primary);transition:width .8s var(--ease)}
+
+.table-wrap{margin-top:16px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:14px}
+thead th{
+  position:sticky;top:0;z-index:3;background:#fff;padding:13px 16px;text-align:right;
+  font-family:Manrope,sans-serif;font-weight:600;font-size:11.5px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-3);border-bottom:1px solid var(--line);white-space:nowrap;
+}
+thead th:first-child{text-align:left;left:0;z-index:4}
+tbody td{padding:11px 16px;text-align:right;border-bottom:1px solid var(--line-2);font-variant-numeric:tabular-nums;color:var(--ink);white-space:nowrap}
+tbody td:first-child{text-align:left;color:var(--ink-2);white-space:normal;min-width:250px}
+thead th:first-child,tbody td:first-child{position:sticky;left:0;background:#fff}
+tr.group-row td{
+  background:var(--line-2);padding:9px 16px;font-family:Manrope,sans-serif;font-weight:700;
+  font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);
+  border-bottom:1px solid var(--line);
+}
+tbody tr:not(.group-row):hover td,tbody tr:not(.group-row):hover td:first-child{background:#F8FBFD}
+.unit{font-size:12px;color:var(--ink-3);margin-left:5px}
+.delta.is-up{color:var(--green);font-weight:600}
+.delta.is-down{color:var(--red);font-weight:600}
+.no-data{color:#C3CEDA}
+.badge{display:inline-block;padding:2px 9px;border-radius:var(--radius-pill);background:var(--blue-tint);color:var(--blue-700);font-size:12px;font-weight:600}
+
+/* ============================================================
+   События
+   ============================================================ */
+/* блоки внутри «Основная информация» */
+.block-title{
+  font-family:Manrope,sans-serif;font-weight:700;font-size:13px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--navy);
+  margin:26px 0 0;text-align:left;
+}
+.bar-note,.table-note{margin:8px 0 0;font-size:12.5px;color:var(--ink-3);text-align:left}
+.sub-title{
+  font-family:Manrope,sans-serif;font-weight:600;font-size:12.5px;
+  letter-spacing:.04em;color:var(--ink-2);margin:20px 0 0;text-align:left;
+}
+.badge.is-pending{background:#FDF6E7;color:var(--amber)}
+.comment-cell{text-align:left !important;white-space:normal !important;color:var(--ink-2) !important;min-width:220px}
+/* сетка структуры ГК: пять колонок, строки выровнены по колонкам */
+.group-grid{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:12px;margin-top:12px;
+}
+.group-grid--head{margin-top:20px;gap:12px}
+.group-grid--head span{
+  font-family:Manrope,sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);
+  text-align:center;padding:0 6px;line-height:1.3;
+}
+.group-cell{
+  display:flex;flex-direction:column;justify-content:center;gap:4px;
+  min-height:68px;padding:12px 14px;text-align:center;
+  border:1px solid transparent;border-radius:12px;
+  background:var(--line-2);
+}
+.group-cell.is-accent{background:var(--blue-tint)}
+.group-cell .cell-label{
+  font-family:Manrope,sans-serif;font-size:10.5px;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);line-height:1.3;
+}
+.group-cell .cell-value{
+  font-family:Manrope,sans-serif;font-weight:700;font-size:15px;
+  color:var(--ink);font-variant-numeric:tabular-nums;
+}
+.group-cell.is-accent .cell-value{color:var(--navy)}
+
+/* наименование компании — единственная кликабельная ячейка.
+   Как и прочие кликабельные карточки, по умолчанию белая;
+   выбранная заливается тем же серым, что и справочные ячейки,
+   и получает тёмно-синюю рамку. */
+.group-cell.is-selectable{
+  cursor:pointer;font:inherit;
+  background:var(--white);
+  border:1px solid var(--line);
+  transition:border-color .18s ease,background .18s ease,box-shadow .18s ease,transform .12s ease;
+}
+.group-cell.is-selectable:hover{border-color:var(--blue-tint-2);background:var(--blue-tint)}
+.group-cell.is-selectable:active{transform:translateY(1px)}
+.group-cell.is-selected{
+  background:var(--line-2);
+  border-color:var(--navy);
+  box-shadow:0 2px 8px rgba(18,58,99,.14);
+}
+.group-cell.is-selected .cell-value{color:var(--navy)}
+.group-cell .cell-note{font-size:10.5px;color:var(--ink-3);letter-spacing:.02em}
+/* карточка текущей компании — справочная, как и остальные серые */
+.group-cell.is-current .cell-note{font-weight:700;color:var(--ink-2)}
+
+/* строка с кнопкой перехода: раздвигает соседние строки. Сетка та же,
+   что у строк компаний, поэтому кнопка стоит точно под наименованием */
+.go-row{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:12px;align-items:center;
+  height:68px;margin-top:12px;
+  animation:goRowAppear .3s var(--ease) both;
+}
+.go-cell{display:flex;align-items:center;justify-content:center}
+@keyframes goRowAppear{from{opacity:0;height:0;margin-top:0}to{opacity:1;height:68px;margin-top:12px}}
+
+/* строка заголовка блока с кнопкой перехода справа */
+.block-head{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:16px;margin-top:26px;
+}
+.block-head .block-title{margin:0}
+.block-hint{font-size:12.5px;color:var(--ink-3)}
+.go-button{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:40px;padding:0 34px;
+  border:0;border-radius:var(--radius-pill);
+  background:var(--gradient-primary);background-size:150% 100%;background-position:0% 50%;
+  color:#fff;font-family:Manrope,sans-serif;font-weight:700;font-size:14px;
+  box-shadow:0 2px 12px rgba(18,58,99,.26);
+  transition:background-position .45s var(--ease),box-shadow .25s ease,transform .12s ease;
+}
+.go-button:hover{background-position:100% 50%;box-shadow:0 4px 18px rgba(18,58,99,.32)}
+.go-button:active{transform:translateY(1px)}
+.group-grid--members .cell-label{display:none}   /* дублируют шапку */
+
+.value-cell{text-align:left !important;white-space:normal !important;color:var(--ink) !important}
+
+.events{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.event{
+  display:flex;gap:14px;align-items:flex-start;
+  padding:14px 18px;border:1px solid var(--line);border-radius:var(--radius-card);
+  background:#fff;text-align:left;
+}
+.event-marker{flex:none;width:8px;height:8px;border-radius:50%;margin-top:7px}
+.event--critical{border-color:#F0D5CF;background:#FDF5F3}
+.event--critical .event-marker{background:var(--red)}
+.event--warning{border-color:#F0E3CB;background:#FEFAF3}
+.event--warning .event-marker{background:var(--amber)}
+.event--positive{border-color:#D2E7DC;background:#F5FBF8}
+.event--positive .event-marker{background:var(--green)}
+.event--info .event-marker{background:var(--blue-400)}
+.event-body{flex:1;min-width:0}
+.event-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px}
+.event-title{font-family:Manrope,sans-serif;font-weight:700;font-size:15px;color:var(--ink)}
+.event-tag{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+.event-detail{margin-top:3px;font-size:14px;color:var(--ink-2)}
+.event-source{margin-top:4px;font-size:12px;color:var(--ink-3)}
+.events-empty{margin-top:20px;text-align:center;color:var(--ink-3);font-size:14px}
+
+/* ============================================================
+   Плавающая панель действий
+   ============================================================ */
+.secondary-button{
+  height:38px;padding:0 18px;border:1px solid var(--line);border-radius:var(--radius-pill);
+  background:#fff;color:var(--ink);font-size:14px;font-weight:500;
+}
+.secondary-button:hover{border-color:var(--blue-tint-2);background:var(--blue-tint)}
+
+.action-bar{
+  position:fixed;right:24px;bottom:24px;z-index:60;
+  display:flex;align-items:center;gap:10px;
+  padding:8px;border-radius:var(--radius-pill);
+  background:rgba(255,255,255,.86);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid var(--line);
+  box-shadow:var(--shadow-lifted);
+  opacity:0;transform:translateY(14px);
+  transition:opacity .35s ease,transform .35s var(--ease);
+}
+.action-bar.is-visible{opacity:1;transform:none}
+.action-bar[hidden]{display:none}
+
+.status-chip{
+  padding:5px 12px;border-radius:var(--radius-pill);
+  font-size:12px;font-weight:600;white-space:nowrap;cursor:default;
+}
+.status-chip.is-warning{background:#FDF6E7;color:var(--amber)}
+.status-chip.is-fresh{background:var(--blue-tint);color:var(--blue-700)}
+.status-chip[hidden]{display:none}
+
+.export-button{
+  display:inline-flex;align-items:center;gap:8px;
+  height:38px;padding:0 20px;
+  border:0;border-radius:var(--radius-pill);
+  background:var(--gradient-export);background-size:150% 100%;background-position:0% 50%;
+  color:#fff;font-family:Manrope,sans-serif;font-weight:700;font-size:14px;
+  box-shadow:0 2px 12px rgba(94,63,168,.30);
+  transition:background-position .45s var(--ease),box-shadow .25s ease,transform .12s ease,opacity .2s ease;
+}
+.export-button:hover:not(:disabled){background-position:100% 50%;box-shadow:0 4px 20px rgba(94,63,168,.38)}
+.export-button:active:not(:disabled){transform:translateY(1px)}
+.export-button:disabled{opacity:.6;cursor:progress}
+.export-button svg{flex:none}
+
+/* на средних экранах сдвиг уменьшается, чтобы строка не уходила за край */
+@media (max-width:1340px){
+  .tab-tree{--marker-gutter:64px;--row-capacity:4}
+}
+@media (max-width:900px){
+  .group-grid,.go-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .group-grid--head{display:none}
+  .group-grid--members .cell-label{display:block}
+}
+@media (max-width:1100px){
+  .tab-tree{--row-capacity:3}
+}
+@media (max-width:760px){
+  .tab-tree{--row-capacity:2}
+  #companyTabs{flex-wrap:wrap;justify-content:center}
+  #companyTabs > .tab{flex:1 1 100%}
+  .tab-pair{flex:1 1 100%;justify-content:center}
+  .tab--company.is-active,.tab--events.is-active{border-radius:14px}
+  /* на узком экране сдвигать строки некуда — перемычка становится
+     короткой вертикальной связкой по центру */
+  .tab-tree{--marker-gutter:0px}
+  .row-arrow{display:none}
+  .tab-row{transform:none !important}
+  .tab-tree.branch-left .tab-branch::before,
+  .tab-tree.branch-right .tab-branch::before{left:50%;right:auto;margin-left:-28px}
+}
+@media (max-width:600px){
+  .stage{padding:20px 14px 140px}
+  .search-field{height:54px;padding-left:16px}
+  #searchInput{font-size:16px}
+  .search-button{padding:0 20px;height:42px}
+  .hero{transform:translateY(16vh)}
+  .tab-tree{--row-capacity:1}
+  .action-bar{left:12px;right:12px;bottom:12px}
+  .action-bar .secondary-button,.action-bar .export-button{flex:1;justify-content:center}
+  .status-chip{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  .processing-ring::after{animation:spin 1.15s linear infinite !important}
+}

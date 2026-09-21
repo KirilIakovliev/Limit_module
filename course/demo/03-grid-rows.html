@@ -1,0 +1,27 @@
+<!DOCTYPE html><html lang="ru"><meta charset="utf-8">
+<title>Демо 3. Плавное раскрытие</title>
+<style>
+ body{font:15px/1.6 system-ui;margin:0;padding:32px;background:#fff;color:#44586C;max-width:980px}
+ h1{font-size:20px;color:#0F1D2B} h2{font-size:15px;margin:24px 0 8px;color:#123A63}
+ button{padding:8px 18px;border:0;border-radius:999px;background:#123A63;color:#fff;
+        font:inherit;font-weight:600;cursor:pointer;margin-bottom:10px}
+ .level{display:grid;grid-template-rows:0fr;transition:grid-template-rows .5s cubic-bezier(.22,.7,.2,1)}
+ .level.open{grid-template-rows:1fr}
+ .level>div{overflow:hidden;min-height:0}
+ .inner{background:#EFF5FB;border-radius:12px;padding:16px}
+ .bad{transition:height .5s} .bad.open{height:auto}
+ .bad{height:0;overflow:hidden}
+</style>
+<h1>Как анимировать раскрытие «на неизвестную высоту»</h1>
+
+<h2>Не работает: height 0 → auto</h2>
+<button onclick="document.getElementById('b').classList.toggle('open')">Раскрыть</button>
+<div class="bad" id="b"><div class="inner">Высота меняется скачком: <code>auto</code> — не число,
+интерполировать нечего.</div></div>
+
+<h2>Работает: grid-template-rows 0fr → 1fr</h2>
+<button onclick="document.getElementById('g').classList.toggle('open')">Раскрыть</button>
+<div class="level" id="g"><div><div class="inner">Здесь браузер анимирует долю строки грида.
+<code>overflow: hidden</code> на внутреннем блоке обязателен — иначе содержимое
+торчало бы из схлопнутой строки.</div></div></div>
+</html>

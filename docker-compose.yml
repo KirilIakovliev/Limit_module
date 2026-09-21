@@ -1,0 +1,72 @@
+# ============================================================
+# Поиск идёт напрямую в Postgres — Redis для работы не нужен.
+#   docker compose up                  -> http://localhost:8000  (db + api)
+#   docker compose --profile full up   -> http://localhost:8080  (+ nginx, + redis)
+# ============================================================
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: abb-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-abb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-abb}
+      POSTGRES_DB: ${POSTGRES_DB:-abb}
+    volumes:
+      # *.sql из этой папки выполняются при первом старте пустого тома
+      - ./db:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"          # наружу на 5433, чтобы не конфликтовать с локальным Postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-abb} -d ${POSTGRES_DB:-abb}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ./api
+    container_name: abb-api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-abb}:${POSTGRES_PASSWORD:-abb}@db:5432/${POSTGRES_DB:-abb}
+      # Пусто -> работаем без кэша. Redis сейчас держит только ответ /api/meta.
+      REDIS_URL: ${REDIS_URL:-}
+      WEB_DIR: /srv/web
+    volumes:
+      - ./api/app:/srv/app:ro          # правки кода подхватываются без пересборки
+      - ./api/scripts:/srv/scripts:ro
+      - ./web:/srv/web:ro              # фронтенд раздаётся тем же сервисом
+      - ./db:/srv/db:ro                # миграции, применяются при старте
+      - ./data:/data                   # сюда кладём CSV для обновления справочника
+    depends_on:
+      db: { condition: service_healthy }
+    ports:
+      - "8000:8000"
+
+  # -------- опционально --------
+  cache:
+    image: redis:7-alpine
+    container_name: abb-cache
+    profiles: ["full"]
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    ports:
+      - "6380:6379"
+
+  web:
+    image: nginx:1.27-alpine
+    container_name: abb-web
+    profiles: ["full"]
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:

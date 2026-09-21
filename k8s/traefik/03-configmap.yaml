@@ -1,0 +1,47 @@
+# ============================================================
+# Статическая конфигурация Traefik.
+#
+# Сознательное решение: провайдер kubernetesIngress, а НЕ
+# kubernetesCRD. CRD Traefik — это отдельный файл на ~200 КБ,
+# который пришлось бы переносить в контур и обновлять вместе с
+# версией Traefik. Обычный Ingress покрывает наши задачи целиком:
+# один хост, несколько путей, никаких middleware.
+#
+# Если позже понадобятся IngressRoute (сложная маршрутизация,
+# middleware, TCP/UDP) — добавить CRD и провайдер kubernetesCRD.
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traefik-config
+  namespace: traefik
+data:
+  traefik.yml: |
+    global:
+      checkNewVersion: false      # в закрытом контуре ходить наружу некуда
+      sendAnonymousUsage: false
+
+    entryPoints:
+      web:
+        address: ":8000"
+      websecure:
+        address: ":8443"
+      traefik:
+        address: ":9000"          # дашборд и healthcheck
+
+    providers:
+      kubernetesIngress:
+        ingressClass: traefik
+        allowEmptyServices: true
+
+    api:
+      dashboard: true
+      insecure: true              # дашборд только через port-forward, наружу не публикуется
+
+    ping:
+      entryPoint: traefik         # /ping для проб kubelet
+
+    log:
+      level: INFO
+
+    accessLog: {}

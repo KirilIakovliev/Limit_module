@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Лимитный модуль АББ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css?v=20260827-1530">
+</head>
+<body>
+
+<main class="stage">
+
+  <!-- ====================== ПОИСК ====================== -->
+  <section class="hero">
+    <div class="page-title-wrap">
+      <div class="page-title-inner">
+        <h1 class="page-title">Лимитный модуль <em>АББ</em></h1>
+        <p class="page-subtitle">Поиск по названию компании или ИНН</p>
+      </div>
+    </div>
+
+    <div class="search-area">
+      <div class="search-field" id="searchField">
+        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/>
+        </svg>
+        <input id="searchInput" type="text" inputmode="text" placeholder="Название компании или ИНН"
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+               role="combobox" aria-expanded="false" aria-controls="suggestionList" aria-autocomplete="list">
+        <button class="clear-button" id="clearButton" type="button" aria-label="Очистить">&times;</button>
+        <button class="search-button" id="searchButton" type="button" disabled>Поиск</button>
+      </div>
+      <div class="suggestions" id="suggestionList" role="listbox" aria-label="Похожие компании"></div>
+    </div>
+
+    <div class="search-hint" id="searchHint">Введите не менее 3 символов</div>
+  </section>
+
+  <!-- ====================== РЕЗУЛЬТАТ ====================== -->
+  <section class="result-panel" id="resultPanel" aria-live="polite">
+
+    <div class="processing" id="processingIndicator">
+      <div class="processing-ring"><span>Обработка</span></div>
+      <p id="processingNote">Запрашиваем данные из базы</p>
+    </div>
+
+    <div class="error-box" id="errorBox">
+      <div id="errorMessage"></div>
+      <button class="secondary-button" type="button" id="retryButton">Повторить</button>
+    </div>
+
+    <div class="tab-tree" id="tabTree" hidden>
+      <!-- подсказка о возможном сдвиге первой строки -->
+      <span class="row-arrow row-arrow--left" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M15 5 8 12l7 7"/></svg>
+      </span>
+      <span class="row-arrow row-arrow--right" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+      </span>
+
+      <!-- уровень 1: компания · ИНН · КПП · события -->
+      <div class="tab-level is-open" id="companyLevel">
+        <div class="tab-row" id="companyTabs"></div>
+      </div>
+
+      <!-- уровень 2: основная информация · лимиты · сублимиты · резервы -->
+      <div class="tab-level" id="sectionLevel">
+        <div class="tab-branch">
+          <div class="tab-row" id="sectionTabs"></div>
+        </div>
+      </div>
+
+      <!-- уровень 3: баланс · финрезультаты · коэффициенты -->
+      <div class="tab-level" id="groupLevel">
+        <div class="tab-branch">
+          <div class="tab-row" id="groupTabs"></div>
+        </div>
+      </div>
+
+      <div class="panel-content" id="panelContent"></div>
+    </div>
+  </section>
+
+  <!-- плавающая панель действий: следует за прокруткой -->
+  <div class="action-bar" id="actionBar" hidden>
+    <span class="status-chip" id="statusChip" hidden></span>
+    <button class="secondary-button" type="button" id="resetButton">Новый поиск</button>
+    <button class="export-button" type="button" id="exportButton">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 20h16"/>
+      </svg>
+      Выгрузить в Excel
+    </button>
+  </div>
+</main>
+
+<script src="js/format.js?v=20260827-1530"></script>
+<script src="js/demo-data.js?v=20260827-1530"></script>
+<script src="js/api.js?v=20260827-1530"></script>
+<script src="js/xlsx-writer.js?v=20260827-1530"></script>
+<script src="js/excel-export.js?v=20260827-1530"></script>
+<script src="js/events.js?v=20260827-1530"></script>
+<script src="js/table-views.js?v=20260827-1530"></script>
+<script src="js/search-bar.js?v=20260827-1530"></script>
+<script src="js/tab-tree.js?v=20260827-1530"></script>
+<script src="js/app.js?v=20260827-1530"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+# ============================================================
+# Правило маршрутизации для Traefik.
+#
+# Обычный networking.k8s.io/v1 Ingress, без CRD Traefik — меньше
+# файлов для переноса в контур (см. комментарий в traefik/03-configmap.yaml).
+#
+# Путь один: всё приложение живёт на одном origin. Так не нужен CORS,
+# и фронтенд обращается к /api тем же адресом, с которого загрузился.
+# ============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: abb
+  namespace: abb
+spec:
+  ingressClassName: traefik
+  rules:
+    # ЗАМЕНИТЬ на реальное имя. Пока DNS нет, добавьте в /etc/hosts
+    # на рабочей машине:  10.149.35.70  abb.local
+    - host: abb.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: abb-api
+                port:
+                  number: 8000
+    # Дублирующее правило без host: чтобы работал заход по IP узла
+    # (http://10.149.35.70:30080/) до настройки DNS
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: abb-api
+                port:
+                  number: 8000

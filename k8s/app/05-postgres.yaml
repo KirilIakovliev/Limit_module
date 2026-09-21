@@ -1,0 +1,107 @@
+# ============================================================
+# Postgres как StatefulSet, а не Deployment.
+#
+# Разница принципиальная: StatefulSet даёт поду стабильное имя
+# (abb-postgres-0) и привязывает к нему конкретный том. Deployment
+# при обновлении может поднять второй под раньше, чем умрёт первый,
+# и два процесса Postgres схватятся за один каталог данных —
+# это верное повреждение базы.
+#
+# volumeClaimTemplates создаёт PVC автоматически на каждую реплику.
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: abb-postgres
+  namespace: abb
+spec:
+  # headless-сервис: нужен StatefulSet для стабильных DNS-имён.
+  # Обращаться всё равно можно как к обычному: abb-postgres:5432
+  clusterIP: None
+  selector:
+    app: abb-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: abb-postgres
+  namespace: abb
+spec:
+  serviceName: abb-postgres
+  replicas: 1                     # реплики Postgres — отдельная задача, не для теста
+  selector:
+    matchLabels:
+      app: abb-postgres
+  template:
+    metadata:
+      labels:
+        app: abb-postgres
+    spec:
+      securityContext:
+        fsGroup: 999              # postgres в официальном образе — uid/gid 999
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: abb-db
+          env:
+            # Данные кладём в подкаталог: если том смонтирован в корень,
+            # initdb спотыкается о lost+found на некоторых хранилищах
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          # Аналог healthcheck из docker-compose.
+          # readiness решает, слать ли трафик; liveness — перезапускать ли под.
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "abb", "-d", "abb"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "abb", "-d", "abb"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 4
+          # startupProbe даёт базе спокойно подняться в первый раз:
+          # initdb на пустом томе выполняет все наши db/*.sql и это не мгновенно
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "abb", "-d", "abb"]
+            failureThreshold: 30
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+      volumes:
+        - name: initdb
+          configMap:
+            name: abb-initdb      # создаётся скриптом generate-initdb.sh
+  volumeClaimTemplates:
+    - metadata:
+        name: pgdata
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: abb-local
+        resources:
+          requests:
+            storage: 10Gi

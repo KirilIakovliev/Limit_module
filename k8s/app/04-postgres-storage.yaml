@@ -1,0 +1,52 @@
+# ============================================================
+# Хранилище для базы.
+#
+# На свежем кластере kubeadm StorageClass НЕТ вообще — PVC
+# останется в Pending навсегда, а под не запустится. Это самая
+# частая причина «ничего не работает» на первом развёртывании.
+#
+# Здесь простейший вариант для теста: PV на диске конкретного узла.
+# Минус очевиден: под с базой может запуститься только на этом узле,
+# и при его потере данные теряются. Для теста приемлемо, для прода —
+# нет; там нужен реальный StorageClass (Ceph, NFS, vSphere, local-path
+# provisioner).
+#
+# ПЕРЕД ПРИМЕНЕНИЕМ на выбранном узле:
+#   mkdir -p /var/lib/abb-pgdata
+#   chown 999:999 /var/lib/abb-pgdata     # postgres в образе — uid/gid 999
+#   chmod 700 /var/lib/abb-pgdata
+#
+# chown обязателен: каталог, созданный root-ом, недоступен процессу
+# postgres на запись, и initdb падает с «could not create directory».
+# fsGroup в StatefulSet на local-томах не всегда меняет владельца.
+#
+# И подставить имя узла в nodeAffinity.
+# ============================================================
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: abb-local
+provisioner: kubernetes.io/no-provisioner   # тома создаются вручную
+volumeBindingMode: WaitForFirstConsumer     # привязать к узлу, где встанет под
+reclaimPolicy: Retain                       # не удалять данные вместе с PVC
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: abb-pgdata
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes: ["ReadWriteOnce"]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: abb-local
+  local:
+    path: /var/lib/abb-pgdata
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - "ЗАМЕНИТЬ-НА-ИМЯ-УЗЛА"   # kubectl get nodes
