@@ -62,7 +62,7 @@ const SearchBar = (() => {
         <span class="suggestion-dot"></span>
         <span>
           <span class="suggestion-name">${highlightMatch(company.name, text)}</span>
-          <span class="suggestion-meta">ИНН ${highlightMatch(company.inn, text)} · КПП ${Format.escape(company.kpp || '—')} · ${Format.escape(company.industry || '')}</span>
+          <span class="suggestion-meta">ИНН ${highlightMatch(company.inn, text)} · КПП ${Format.escape(company.kpp || '—')}</span>
         </span>
       </div>`).join('');
 

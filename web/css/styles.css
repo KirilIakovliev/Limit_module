@@ -457,6 +457,8 @@ tbody tr:not(.group-row):hover td,tbody tr:not(.group-row):hover td:first-child{
   letter-spacing:.04em;color:var(--ink-2);margin:20px 0 0;text-align:left;
 }
 .badge.is-pending{background:#FDF6E7;color:var(--amber)}
+table tbody tr.is-exceeded td{background:#FDF5F3;color:var(--red)}
+.group-grid.is-exceeded-block{outline:1px solid #F0D5CF;background:#FDF5F3}
 .comment-cell{text-align:left !important;white-space:normal !important;color:var(--ink-2) !important;min-width:220px}
 /* сетка структуры ГК: пять колонок, строки выровнены по колонкам */
 .group-grid{

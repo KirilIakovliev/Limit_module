@@ -49,12 +49,16 @@ def tree() -> str:
 def counts() -> str:
     rows = []
     for path in ["web/index.html", "web/css/styles.css", "web/js/format.js", "web/js/api.js",
-                 "web/js/demo-data.js", "web/js/search-bar.js", "web/js/tab-tree.js",
-                 "web/js/table-views.js", "web/js/events.js", "web/js/xlsx-writer.js",
-                 "web/js/excel-export.js", "web/js/app.js", "api/app/main.py", "api/app/cache.py",
-                 "db/01_schema.sql", "db/02_seed.sql", "db/03_search_index.sql",
-                 "db/04_groups.sql", "db/05_limits.sql", "db/06_reserves.sql"]:
-        n = len((ROOT / path).read_text(encoding="utf-8").split("\n"))
+                 "web/js/search-bar.js", "web/js/tab-tree.js",
+                 "web/js/table-views.js", "web/js/xlsx-writer.js",
+                 "web/js/excel-export.js", "web/js/app.js",
+                 "api/app/main.py", "api/app/cache.py", "api/app/db.py",
+                 "api/app/queries.py", "api/app/models.py",
+                 "db/00_extensions.sql", "db/10_sbox_rsk_drt_marts.sql",
+                 "db/11_sbox_rsk_drt_refs.sql", "db/12_srd_replicas.sql",
+                 "db/13_app_technical.sql"]:
+        p = ROOT / path
+        n = len(p.read_text(encoding="utf-8").split("\n")) if p.is_file() else "нет файла"
         rows.append(f"| `{path}` | {n} |")
     return "\n".join(rows)
 

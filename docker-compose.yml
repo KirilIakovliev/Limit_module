@@ -28,6 +28,7 @@ services:
     container_name: abb-api
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-abb}:${POSTGRES_PASSWORD:-abb}@db:5432/${POSTGRES_DB:-abb}
+      REPLICA_SCHEMA: ${REPLICA_SCHEMA:-sbox_rsk_drt}
       # Пусто -> работаем без кэша. Redis сейчас держит только ответ /api/meta.
       REDIS_URL: ${REDIS_URL:-}
       WEB_DIR: /srv/web
