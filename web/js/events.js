@@ -135,35 +135,45 @@ const Events = (() => {
   }
 
   /* ---------- лимиты: утилизация и сроки ---------- */
+  const amount = v => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
   function fromLimits(data) {
     const found = [];
     const soonDays = 90;
     const now = new Date();
+    const items = (data && data.items) || (data && data.limits) || [];
 
-    data.items.forEach(item => {
-      const used = item.limit_amount ? item.used_amount / item.limit_amount * 100 : 0;
+    items.forEach(item => {
+      const limitAmount = amount(item.limit_amount != null ? item.limit_amount : item.lim_value);
+      const usedAmount = amount(item.used_amount != null ? item.used_amount : item.lim_utiled);
+      const available = item.available != null ? item.available : item.rest_lim;
+      const until = item.valid_until || item.end_date;
+      const used = limitAmount ? usedAmount / limitAmount * 100 : 0;
 
       if (used >= 100) {
         found.push({
           level: 'critical', title: `${item.product}: лимит выбран полностью`,
-          detail: `Использовано ${Format.compact(item.used_amount)} из ${Format.compact(item.limit_amount)}`,
+          detail: `Использовано ${Format.compact(usedAmount, item.currency)} из ${Format.compact(limitAmount, item.currency)}`,
           source: 'Лимиты', period: 'текущий', weight: 110,
         });
       } else if (used >= 90) {
         found.push({
           level: 'warning', title: `${item.product}: утилизация ${used.toFixed(1).replace('.', ',')}%`,
-          detail: `Свободный остаток ${Format.compact(item.available)}`,
+          detail: `Свободный остаток ${Format.compact(available, item.currency)}`,
           source: 'Лимиты', period: 'текущий', weight: 80,
         });
       }
 
-      if (item.valid_until) {
-        const days = Math.round((new Date(item.valid_until) - now) / 86400000);
+      if (until) {
+        const days = Math.round((new Date(until) - now) / 86400000);
         if (days >= 0 && days <= soonDays) {
           found.push({
             level: 'warning', title: `${item.product}: срок действия истекает`,
-            detail: `Осталось ${days} дн. — до ${Format.date(item.valid_until)}`,
-            source: 'Лимиты', period: Format.date(item.valid_until), weight: 85,
+            detail: `Осталось ${days} дн. — до ${Format.date(until)}`,
+            source: 'Лимиты', period: Format.date(until), weight: 85,
           });
         }
       }
@@ -199,10 +209,11 @@ const Events = (() => {
 
   /* ---------- сборка ---------- */
   function detect(data) {
+    const payload = data || {};
     const all = [
-      ...fromIndicators(data.indicators),
-      ...fromLimits(data.limits),
-      ...fromReserves(data.reserves),
+      ...fromIndicators(payload.indicators || {}),
+      ...fromLimits(payload.limits || {}),
+      ...fromReserves(payload.reserves || {}),
     ];
     // сначала самое важное; вес учитывает и величину отклонения, и знак
     const rank = { critical: 3, warning: 2, positive: 1, info: 0 };

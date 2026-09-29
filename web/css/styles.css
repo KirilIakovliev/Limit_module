@@ -457,6 +457,8 @@ tbody tr:not(.group-row):hover td,tbody tr:not(.group-row):hover td:first-child{
   letter-spacing:.04em;color:var(--ink-2);margin:20px 0 0;text-align:left;
 }
 .badge.is-pending{background:#FDF6E7;color:var(--amber)}
+table tbody tr.is-exceeded td{background:#FDF5F3;color:var(--red)}
+.group-grid.is-exceeded-block{outline:1px solid #F0D5CF;background:#FDF5F3}
 .comment-cell{text-align:left !important;white-space:normal !important;color:var(--ink-2) !important;min-width:220px}
 /* сетка структуры ГК: пять колонок, строки выровнены по колонкам */
 .group-grid{
@@ -464,6 +466,9 @@ tbody tr:not(.group-row):hover td,tbody tr:not(.group-row):hover td:first-child{
   gap:12px;margin-top:12px;
 }
 .group-grid--head{margin-top:20px;gap:12px}
+.currency-line{display:block}
+.currency-line + .currency-line{margin-top:6px}
+.currency-line.is-exceeded{color:var(--red)}
 .group-grid--head span{
   font-family:Manrope,sans-serif;font-size:10.5px;font-weight:600;
   letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);

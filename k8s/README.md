@@ -56,8 +56,8 @@ docker pull 11 базовых  ──► ctr import на узлы
 | `profiles: full` (redis) | **не переносим** | поиск ходит прямо в Postgres |
 
 **В коде приложения менять ничего не нужно.** Всё читается из переменных
-окружения, а `ensure_schema()` при старте приводит схему в порядок — одинаково
-в Compose и в k8s. Отличается только Dockerfile.
+окружения (`DATABASE_URL`, `REPLICA_SCHEMA`, `WEB_DIR`). Схема копий DataHub
+создаётся initdb из `db/*.sql`. Отличается только Dockerfile.
 
 ---
 
@@ -735,10 +735,12 @@ kubectl -n abb exec statefulset/abb-postgres -- psql -U abb -d abb -c '\dt'
 Пусто — накатите базовую схему вручную:
 
 ```bash
-kubectl -n abb exec -i statefulset/abb-postgres -- psql -U abb -d abb < db/01_schema.sql
+kubectl -n abb exec -i statefulset/abb-postgres -- psql -U abb -d abb < db/00_extensions.sql
+kubectl -n abb exec -i statefulset/abb-postgres -- psql -U abb -d abb < db/10_sbox_rsk_drt_marts.sql
+# далее 11, 12, 13 и при необходимости 90, 91
 ```
 
-Миграции 03–06 применит сам API при старте (`ensure_schema`), базовую схему — нет.
+Либо пересоздайте PVC, чтобы initdb из ConfigMap `abb-initdb` выполнил все `db/*.sql`.
 
 ---
 
@@ -746,9 +748,7 @@ kubectl -n abb exec -i statefulset/abb-postgres -- psql -U abb -d abb < db/01_sc
 
 1. **Аутентификация.** Её нет вообще: приложение доступно любому, кто знает
    адрес и порт.
-2. **Удалить демо-данные** — `web/js/demo-data.js` и `withFallback` в `api.js`.
-   В закрытом контуре подмена ошибки выдуманными цифрами опаснее, чем в
-   разработке.
+2. **Демо-данные удалены** (`demo-data.js` и `withFallback`). Не возвращать fallback.
 3. **Пароли** из Secret — в Vault или Sealed Secrets.
 4. **TLS**: сейчас только HTTP.
 5. **Реальный StorageClass** вместо PV на узле.

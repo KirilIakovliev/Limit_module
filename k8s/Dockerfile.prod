@@ -30,9 +30,7 @@ WORKDIR /srv
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     WEB_DIR=/srv/web \
-    GROUPS_SQL=/srv/db/04_groups.sql \
-    LIMITS_SQL=/srv/db/05_limits.sql \
-    RESERVES_SQL=/srv/db/06_reserves.sql
+    REPLICA_SCHEMA=sbox_rsk_drt
 
 # Зависимости отдельным слоем: правка кода не переустанавливает пакеты
 COPY api/requirements.txt .

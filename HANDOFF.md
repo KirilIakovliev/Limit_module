@@ -1,5 +1,12 @@
 # Лимитный модуль АББ — сводка проекта
 
+> **Актуальное описание схемы и API после перехода на копии витрин DataHub:**
+> [docs/database_migration.md](docs/database_migration.md), [docs/ddl_conversion.md](docs/ddl_conversion.md).
+> Текст ниже — сводка **прототипа v0** (изобретённые таблицы `companies` / `limits`,
+> `/api/companies/{id}`, `demo-data.js`). Файлы `db/01–06`, `refresh_companies.py`,
+> `demo-data.js`, `events.js` удалены. Не запускайте `tools/build_handoff.py`
+> без правки списка файлов — он собирал этот документ из уже несуществующих путей.
+
 Документ для передачи проекта: что построено, какой код за это отвечает,
 какие решения приняты и почему, на какие грабли уже наступили.
 

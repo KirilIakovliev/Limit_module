@@ -1,5 +1,6 @@
 /* ============================================================
    Сборка: поиск -> «Обработка» -> дерево вкладок -> выгрузка.
+   Ключ клиента — ИНН.
    ============================================================ */
 (() => {
   const byId = id => document.getElementById(id);
@@ -20,9 +21,9 @@
 
   /* Переход на карточку другой компании из структуры ГК.
      Это полноценный новый запрос — тот же цикл, что и при поиске:
-     «Обработка», параллельная загрузка всех разделов, сборка дерева.
+     «Обработка», параллельная загрузка разделов, сборка дерева.
      Прежние данные не переиспользуются. */
-  TabTree.onOpenCompany(async companyId => {
+  TabTree.onOpenCompany(async inn => {
     document.body.classList.add('is-searching');
     resultPanel.classList.add('is-visible');
     TabTree.clear();
@@ -33,8 +34,8 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
-      const company = await API.company(companyId);
-      if (!company) throw new Error('Компания не найдена');
+      const company = await API.client(inn);
+      if (!company) throw new Error('Клиент не найден');
       await loadCompany(company);
     } catch (error) {
       processing.classList.remove('is-visible');
@@ -61,18 +62,16 @@
 
     try {
       // все ветки дерева тянем параллельно
-      const [profile, indicators, limits, sublimits, reserves] = await Promise.all([
-        API.profile(company.id),
-        API.indicators(company.id),
-        API.limits(company.id),
-        API.sublimits(company.id),
-        API.reserves(company.id),
+      const inn = company.inn;
+      const [profile, limits] = await Promise.all([
+        API.client(inn),
+        API.limits(inn),
       ]);
-      const data = { profile, indicators, limits, sublimits, reserves };
-      loaded = { company, data };
+      const data = { profile, limits };
+      loaded = { company: profile, data };
 
       processing.classList.remove('is-visible');
-      TabTree.render(company, data);
+      TabTree.render(profile, data);
       showActionBar();
     } catch (error) {
       processing.classList.remove('is-visible');
@@ -106,35 +105,33 @@
     }, 350);
   }
 
-  /* Когда справочник компаний обновлялся последний раз.
-     Если бэкенда нет — честно говорим, что данные демонстрационные. */
   async function updateFreshness() {
-    if (API.isOffline()) {
-      statusChip.textContent = 'демо-данные';
-      statusChip.className = 'status-chip is-warning';
-      statusChip.title = 'Бэкенд не отвечает, показаны демо-данные';
-      statusChip.hidden = false;
-      return;
-    }
-
     const meta = await API.meta();
-    const stamp = meta && meta.directory && meta.directory.updated_at;
-    if (!stamp) { statusChip.hidden = true; return; }
+    if (!meta || !meta.updated_at) { statusChip.hidden = true; return; }
 
+    const stamp = meta.updated_at;
     const moment = new Date(stamp);
     const isToday = moment.toDateString() === new Date().toDateString();
     const time = moment.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     const day = moment.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    const when = isToday ? time : `${day} ${time}`;
 
-    statusChip.textContent = `Последнее обновление ${isToday ? time : day + ' ' + time}`;
-    statusChip.className = 'status-chip is-fresh';
-    statusChip.title = `Справочник: ${meta.directory.count} компаний · ${moment.toLocaleString('ru-RU')}`;
+    if (meta.stale) {
+      statusChip.textContent = `актуальность данных не гарантируется (нет обновления > ${meta.stale_after_hours || 24} ч)`;
+      statusChip.className = 'status-chip is-warning';
+      statusChip.title = `Последнее обновление ${moment.toLocaleString('ru-RU')}`;
+    } else {
+      statusChip.textContent = `Последнее обновление ${when}`;
+      statusChip.className = 'status-chip is-fresh';
+      statusChip.title = meta.data_date
+        ? `Отчётная дата: ${meta.data_date} · ${moment.toLocaleString('ru-RU')}`
+        : moment.toLocaleString('ru-RU');
+    }
     statusChip.hidden = false;
   }
 
   /* ---------- выгрузка ----------
-     Вкладка «События» в файл не попадает: это аналитика на лету,
-     а не таблица из базы. */
+     Вкладки «События» и финотчётность в файл не попадают. */
   function downloadExcel() {
     if (!loaded || !loaded.data) return;
     const label = exportButton.lastChild;
@@ -142,7 +139,10 @@
     exportButton.disabled = true;
     label.textContent = ' Формируем файл…';
     try {
-      ExcelExport.download(loaded.company, loaded.data, API.isOffline());
+      ExcelExport.download(loaded.company, {
+        ...loaded.data,
+        groupCard: TabTree.getGroupCard && TabTree.getGroupCard(),
+      });
     } catch (error) {
       console.error('Не удалось сформировать файл:', error);
       alert('Не удалось сформировать файл. Подробности в консоли.');
