@@ -34,7 +34,6 @@ services:
       WEB_DIR: /srv/web
     volumes:
       - ./api/app:/srv/app:ro          # правки кода подхватываются без пересборки
-      - ./api/scripts:/srv/scripts:ro
       - ./web:/srv/web:ro              # фронтенд раздаётся тем же сервисом
       - ./db:/srv/db:ro                # миграции, применяются при старте
       - ./data:/data                   # сюда кладём CSV для обновления справочника
