@@ -149,53 +149,106 @@ const TableViews = (() => {
     const headings = ['Компания', 'ИНН', 'Единый сублимит',
                       'Единый доступный сублимит', 'Единый утилизированный сублимит'];
 
-    const goRow = inn => inn !== selectedInn ? '' : `
+    const goRow = inn => `
       <div class="go-row">
         <div class="go-cell">
           <button type="button" class="go-button" data-go-inn="${Format.escape(inn)}">Перейти</button>
         </div>
       </div>`;
 
-    const blocks = summaries.map(s => {
-      const currencyMembers = members.filter(m => (m.currency || '') === (s.currency || ''));
-      const ordered = [...currencyMembers].sort((a, b) =>
-        (b.inn === currentInn) - (a.inn === currentInn));
-      const exceeded = s.is_exceeded ? ' is-exceeded-block' : '';
-      const memberRows = ordered.map(member => `
-        <div class="group-grid group-grid--members">
-          ${member.inn === currentInn
-              ? currentCell(headings[0], member.name)
-              : member.has_card
-                ? selectableCell(headings[0], member.name, member, member.inn === selectedInn)
-                : staticNameCell(headings[0], member.name)}
-          ${groupCell(headings[1], Format.escape(member.inn))}
-          ${groupCell(headings[2], Format.compact(member.unified_limit, member.currency))}
-          ${groupCell(headings[3], Format.compact(member.unified_available, member.currency))}
-          ${groupCell(headings[4], Format.compact(member.unified_utilized, member.currency))}
-        </div>
-        ${member.has_card ? goRow(member.inn) : ''}`).join('');
+    const lines = (rows, field) => rows.map(row =>
+      `<span class="currency-line${row.is_exceeded ? ' is-exceeded' : ''}">${Format.compact(row[field], row.currency)}</span>`
+    ).join('');
 
-      return `
-        <h3 class="block-title">Единый лимит${s.currency ? ' · ' + Format.escape(s.currency) : ''}</h3>
-        <div class="group-grid${exceeded}">
-          ${groupCell('Сумма единого лимита', Format.compact(s.unified_limit, s.currency), true)}
-          ${groupCell('Единый доступный лимит', Format.compact(s.unified_available, s.currency))}
-          ${groupCell('Единый утилизированный лимит', Format.compact(s.unified_utilized, s.currency))}
-          ${groupCell('Совокупный лимит', Format.compact(s.total_limit, s.currency))}
-          ${groupCell('«Крышка»', `<span class="no-data" title="${missing}">нет данных</span>`)}
-        </div>
-        <div class="block-head">
-          <h3 class="block-title">Компании в структуре ГК</h3>
-          <span class="block-hint">Выберите наименование компании, чтобы перейти к её карточке</span>
-        </div>
-        <div class="group-grid group-grid--head">
-          ${headings.map(title => `<span>${Format.escape(title)}</span>`).join('')}
-        </div>
-        ${memberRows || '<p class="events-empty">Участников нет.</p>'}`;
-    }).join('');
+    const blocks = summaries.length ? `
+      <h3 class="block-title">Единый лимит</h3>
+      <div class="group-grid">
+        ${groupCell('Сумма единого лимита', lines(summaries, 'unified_limit'), true)}
+        ${groupCell('Единый доступный лимит', lines(summaries, 'unified_available'))}
+        ${groupCell('Единый утилизированный лимит', lines(summaries, 'unified_utilized'))}
+        ${groupCell('Совокупный лимит', lines(summaries, 'total_limit'))}
+        ${groupCell('«Крышка»', `<span class="no-data" title="${missing}">нет данных</span>`)}
+      </div>` : '';
+
+    // Одна строка на ИНН. Валюты — отдельные строки внутри сумм, без сложения.
+    const ordered = [...members].sort((a, b) => (b.inn === currentInn) - (a.inn === currentInn));
+    const companies = [];
+    for (const member of ordered) {
+      let company = companies.find(item => item.inn === member.inn);
+      if (!company) {
+        company = { inn: member.inn, name: member.name, has_card: member.has_card, rows: [] };
+        companies.push(company);
+      }
+      company.rows.push(member);
+    }
+    const companyRows = companies.map(company => `
+      <div class="group-grid group-grid--members">
+        ${company.inn === currentInn
+            ? currentCell(headings[0], company.name)
+            : company.has_card
+              ? selectableCell(headings[0], company.name, company, company.inn === selectedInn)
+              : staticNameCell(headings[0], company.name)}
+        ${groupCell(headings[1], Format.escape(company.inn))}
+        ${groupCell(headings[2], lines(company.rows, 'unified_limit'))}
+        ${groupCell(headings[3], lines(company.rows, 'unified_available'))}
+        ${groupCell(headings[4], lines(company.rows, 'unified_utilized'))}
+      </div>
+      ${company.has_card && company.inn === selectedInn ? goRow(company.inn) : ''}`).join('');
+
+    const membersBlock = `
+      <div class="block-head">
+        <h3 class="block-title">Компании в структуре ГК</h3>
+        <span class="block-hint">Выберите наименование компании, чтобы перейти к её карточке</span>
+      </div>
+      <div class="group-grid group-grid--head">
+        ${headings.map(title => `<span>${Format.escape(title)}</span>`).join('')}
+      </div>
+      ${companyRows || '<p class="events-empty">Участников нет.</p>'}`;
 
     return head(data.name || 'Группа компаний', `Валют: ${summaries.length} · участников: ${new Set(members.map(m => m.inn)).size}`) +
-      (blocks || '<p class="events-empty">Нет данных по группе.</p>');
+      (blocks ? blocks + membersBlock : '<p class="events-empty">Нет данных по группе.</p>');
+  }
+
+  /* ---------- События ----------
+     Список фильтруется вкладками второго уровня; сами вкладки строит tab-tree.js */
+  const EVENT_LABEL = {
+    critical: 'Требует внимания',
+    warning: 'Наблюдение',
+    positive: 'Положительная динамика',
+    info: 'Информация',
+  };
+
+  const FILTER_TITLE = {
+    critical: 'Требуют внимания',
+    warning: 'Наблюдение',
+    positive: 'Положительная динамика',
+  };
+
+  function events(list, filter) {
+    const visible = filter ? list.filter(event => event.level === filter) : list;
+    const period = list.length ? list[0].period : '';
+
+    if (!visible.length) {
+      return head(FILTER_TITLE[filter] || 'События', 'за текущий период') +
+        `<p class="events-empty">Событий нет.</p>`;
+    }
+
+    const items = visible.map(event => `
+      <li class="event event--${event.level}">
+        <span class="event-marker"></span>
+        <div class="event-body">
+          <div class="event-head">
+            <span class="event-title">${Format.escape(event.title)}</span>
+            <span class="event-tag">${EVENT_LABEL[event.level]}</span>
+          </div>
+          <div class="event-detail">${Format.escape(event.detail)}</div>
+          <div class="event-source">${Format.escape(event.source)} · ${Format.escape(event.period)}</div>
+        </div>
+      </li>`).join('');
+
+    return head(FILTER_TITLE[filter] || 'События',
+                `${visible.length} за текущий период${period ? ' · ' + Format.escape(period) : ''}`) +
+      `<ul class="events">${items}</ul>`;
   }
 
   /* ---------- Основная информация: атрибутный состав ---------- */
@@ -218,5 +271,5 @@ const TableViews = (() => {
         <tbody>${rows}</tbody></table></div>`;
   }
 
-  return { limits, sublimits, reserves, group, profile };
+  return { limits, sublimits, reserves, group, profile, events };
 })();

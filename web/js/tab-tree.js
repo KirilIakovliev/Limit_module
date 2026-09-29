@@ -95,14 +95,32 @@ const TabTree = (() => {
     const company = state.company;
     const { limits, profile } = state.data;
 
-    // --- уровень 1 (вкладки «События» нет в БТ)
+    // --- уровень 1
     tabNodes.company = createTab({
       label: 'Компания', value: company.name, note: 'Открыть карточку',
       index: 0, onClick: () => selectView('company'),
     });
     tabNodes.company.classList.add('tab--company');
 
-    setRowTabs(companyTabs, [tabNodes.company, createIdentityPair(company)]);
+    const criticalCount = Events.countBy(state.events, 'critical');
+    tabNodes.events = createTab({
+      label: 'События', labelFlag: '(в разработке)',
+      value: criticalCount ? `${criticalCount} требуют внимания` : 'отклонений нет',
+      index: 3, onClick: () => selectView('events'),
+    });
+    tabNodes.events.classList.add('tab--events');
+    if (criticalCount) tabNodes.events.classList.add('has-alert');
+
+    tabNodes.eventFilters = {};
+    EVENT_FILTERS.forEach((filter, index) => {
+      const count = Events.countBy(state.events, filter.code);
+      tabNodes.eventFilters[filter.code] = createTab({
+        label: filter.label, value: String(count), note: filter.note,
+        index, onClick: () => selectEventFilter(filter.code),
+      });
+    });
+
+    setRowTabs(companyTabs, [tabNodes.company, createIdentityPair(company), tabNodes.events]);
 
     const limitCount = (limits && limits.limits) ? limits.limits.length : 0;
     const appCount = (limits && limits.applications) ? limits.applications.length : 0;
@@ -160,17 +178,23 @@ const TabTree = (() => {
   /* ---------- синхронизация состояний ---------- */
   function syncTabs() {
     const companyOpen = state.view === 'company';
-    const eventsOpen = false;
-    const showStatements = false;
+    const eventsOpen = state.view === 'events';
     const showAttributes = companyOpen && state.section === 'main';
     const showGroups = showAttributes;
 
     tabNodes.company.classList.toggle('is-active', companyOpen);
     tabNodes.company.noteElement.textContent = companyOpen ? 'Свернуть карточку' : 'Открыть карточку';
+    tabNodes.events.classList.toggle('is-active', eventsOpen);
 
-    setRowTabs(sectionTabs, Object.values(tabNodes.sections));
-    Object.entries(tabNodes.sections).forEach(([code, node]) =>
-      node.classList.toggle('is-active', state.section === code));
+    if (eventsOpen) {
+      setRowTabs(sectionTabs, Object.values(tabNodes.eventFilters));
+      Object.entries(tabNodes.eventFilters).forEach(([code, node]) =>
+        node.classList.toggle('is-active', state.eventFilter === code));
+    } else {
+      setRowTabs(sectionTabs, Object.values(tabNodes.sections));
+      Object.entries(tabNodes.sections).forEach(([code, node]) =>
+        node.classList.toggle('is-active', state.section === code));
+    }
 
     if (showAttributes) {
       setRowTabs(groupTabs, Object.values(tabNodes.attributes));
@@ -390,7 +414,9 @@ const TabTree = (() => {
     const data = state.data;
     let html = '';
 
-    if (state.view === 'company') {
+    if (state.view === 'events') {
+      html = TableViews.events(state.events, state.eventFilter);
+    } else if (state.view === 'company') {
       if (state.section === 'main') {
         html = state.attribute === 'group' && state.groupCard
           ? TableViews.group(state.groupCard, {
@@ -451,6 +477,13 @@ const TabTree = (() => {
     state.section = null;
     state.attribute = null;
     state.groupSelection = null;
+    if (state.view === 'events') state.eventFilter = 'critical';
+    syncTabs();
+    renderContent();
+  }
+
+  function selectEventFilter(code) {
+    state.eventFilter = code;
     syncTabs();
     renderContent();
   }
@@ -466,7 +499,7 @@ const TabTree = (() => {
   function render(company, data) {
     Object.assign(state, {
       company, data,
-      events: [],
+      events: Events.detect(data),
       view: null, section: null, group: 'balance', eventFilter: 'critical',
       attribute: null, groupSelection: null, groupCard: null,
     });
