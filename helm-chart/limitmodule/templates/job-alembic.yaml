@@ -19,6 +19,8 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
         app.kubernetes.io/component: alembic
     spec:
+      hostNetwork: {{ .Values.app.hostNetwork }}
+      dnsPolicy: {{ .Values.app.dnsPolicy }}
       restartPolicy: OnFailure
       {{- with .Values.app.hostAliases }}
       hostAliases:

@@ -23,6 +23,8 @@ spec:
       labels:
         {{- include "limitmodule.selectorLabels" . | nindent 8 }}
     spec:
+      hostNetwork: {{ .Values.app.hostNetwork }}
+      dnsPolicy: {{ .Values.app.dnsPolicy }}
       {{- with .Values.app.hostAliases }}
       hostAliases:
         {{- toYaml . | nindent 8 }}

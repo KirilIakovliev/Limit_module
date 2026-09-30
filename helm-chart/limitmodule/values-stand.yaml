@@ -9,6 +9,8 @@ image:
 app:
   replicas: 1
   hostPort: 8000
+  hostNetwork: true
+  dnsPolicy: ClusterFirstWithHostNet
   hostAliases:
     - ip: "10.188.0.62"
       hostnames:
