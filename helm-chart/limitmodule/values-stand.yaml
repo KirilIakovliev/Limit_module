@@ -1,0 +1,27 @@
+# Стенд t-lmts1-app51. Пароль не в git:
+#   helm upgrade --install ... -f values-stand.yaml --set postgresql.password='…'
+image:
+  registry: t-lmts1-app51
+  repository: limitmodule
+  tag: "0.2.0"
+  pullPolicy: IfNotPresent
+
+app:
+  replicas: 1
+  hostAliases:
+    - ip: "10.188.0.62"
+      hostnames:
+        - t-lmts1-pdb51.base.akbars.ru
+
+postgresql:
+  host: t-lmts1-pdb51.base.akbars.ru
+  port: 5432
+  database: limitmodule
+  username: limitmodule_test
+  password: ""
+
+ingress:
+  enabled: true
+  className: traefik
+  host: t-lmts1-app51.base.akbars.ru
+  extraHostless: true

@@ -5,7 +5,7 @@
 ## Запуск
 
 **Локально** (Docker, база наполняется моками): [docs/run-local.md](docs/run-local.md).  
-**Тестовый стенд** (база `limitmodule`, без фикстур из репозитория): [docs/run-stand.md](docs/run-stand.md).
+**Тестовый стенд** (DBeaver `db/local`, затем Helm): [docs/run-stand.md](docs/run-stand.md).
 
 `.env` — в корне `Limit_module/`, рядом с `docker-compose.yml`. Шаблон: `.env.example`.
 
@@ -106,7 +106,8 @@ db/local/90_test_refs.sql          реальные INSERT справочник�
 db/local/91_test_marts.sql         моки витрин
 api/alembic/                      схема app.load_log
 docs/run-local.md                 локальный запуск и миграции app
-docs/run-stand.md                 тестовый стенд, база limitmodule
+docs/run-stand.md                 стенд: SQL в DBeaver, затем Helm
+helm-chart/limitmodule            чарт API + Job Alembic (внешний Postgres)
 api/app/db.py                     пул, search_path
 api/app/queries.py                SQL к витринам
 api/app/models.py                 модели ответов (Decimal → строка)

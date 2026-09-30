@@ -82,7 +82,7 @@ SQL в `queries.py` без схемы в именах таблиц. `Decimal` у
 | `web/js/tab-tree.js` | id, события, отчётность | inn, заглушки сублимитов/резервов | состав БТ |
 | `web/js/table-views.js` | ₽, суммы в JS | валюта строки, rest_lim из витрины | не пересчитывать |
 | `web/js/format.js` | `new Date`, всегда ₽ | ISO-дата, `money(v, currency)` | зона и валюта |
-| `k8s/app/02-configmap.yaml` | GROUPS/LIMITS/RESERVES_SQL | `REPLICA_SCHEMA` | нет ensure_schema |
+| Helm ConfigMap | GROUPS/LIMITS/RESERVES_SQL | `REPLICA_SCHEMA` | нет ensure_schema |
 
 ## UI → DB Mapping
 

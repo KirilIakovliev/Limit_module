@@ -1,31 +1,11 @@
-# ============================================================
-# Образ приложения. Собирается НА ТЕСТОВОЙ МАШИНЕ, внутри контура.
-#
-# Два отличия от api/Dockerfile:
-#   1. фронтенд (web/) и Alembic (api/alembic) вшиты в образ, а не
-#      примонтированы томом — узел кластера не видит вашу папку;
-#      фикстуры db/local в образ не входят;
-#   2. пакеты ставятся из Artifactory, а не с pypi.org.
-#
-# Сборка:
-#   docker build -f k8s/Dockerfile.prod \
-#     --build-arg PIP_INDEX_URL=https://artifactory.akbars.tech/artifactory/api/pypi/pypi/simple \
-#     --build-arg PIP_TRUSTED_HOST=artifactory.akbars.tech \
-#     -t abb-limit-module:0.2.0 .
-#
-# Точный путь к зеркалу PyPI уточните у инфраструктуры: у Artifactory
-# он зависит от имени репозитория (pypi, pypi-remote, pypi-virtual...).
-# Проверить до сборки:
-#   curl -sI https://artifactory.akbars.tech/artifactory/api/pypi/pypi/simple/fastapi/
-# ============================================================
-ARG BASE_IMAGE=python:3.12-slim
+# Образ приложения. Сборка nerdctl — docs/run-stand.md.
+# Фронт и Alembic вшиты; db/local не копируется.
+# База образа и pip — Artifactory (в контуре нет docker.io / pypi.org).
+ARG BASE_IMAGE=artifactory.akbars.tech/docker/library/python:3.12-slim
 FROM ${BASE_IMAGE}
 
-# Зеркало пакетов. Значения по умолчанию пустые: если их не передать,
-# pip пойдёт на pypi.org и в закрытом контуре просто не достучится —
-# это лучше, чем молча собрать образ не из того источника.
-ARG PIP_INDEX_URL=""
-ARG PIP_TRUSTED_HOST=""
+ARG PIP_INDEX_URL=https://artifactory.akbars.tech/artifactory/api/pypi/pypi/simple
+ARG PIP_TRUSTED_HOST=artifactory.akbars.tech
 
 WORKDIR /srv
 ENV PYTHONUNBUFFERED=1 \
@@ -33,20 +13,17 @@ ENV PYTHONUNBUFFERED=1 \
     WEB_DIR=/srv/web \
     REPLICA_SCHEMA=sbox_rsk_drt
 
-# Зависимости отдельным слоем: правка кода не переустанавливает пакеты
 COPY api/requirements.txt .
 RUN pip install --no-cache-dir \
-        ${PIP_INDEX_URL:+--index-url ${PIP_INDEX_URL}} \
-        ${PIP_TRUSTED_HOST:+--trusted-host ${PIP_TRUSTED_HOST}} \
+        --index-url ${PIP_INDEX_URL} \
+        --trusted-host ${PIP_TRUSTED_HOST} \
         -r requirements.txt
 
-# Код, фронтенд и ревизии Alembic — внутрь образа. Фикстуры db/local не копируются.
 COPY api/app ./app
 COPY api/alembic ./alembic
 COPY api/alembic.ini ./alembic.ini
 COPY web ./web
 
-# Непривилегированный пользователь: под в кластере не должен работать от root
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin abb \
     && chown -R 10001:10001 /srv
 USER 10001

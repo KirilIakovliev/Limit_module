@@ -48,13 +48,23 @@ ROOT_PRESENT = [
     ("db/local/10_sbox_rsk_drt_marts.sql", "локальный снимок витрин"),
     ("db/local/91_test_marts.sql", "локальные моки витрин"),
     ("api/alembic/versions/001_app_load_log.py", "Alembic: app.load_log"),
+    ("api/app/wait_db.py", "ожидание БД без образа postgres"),
     ("docs/run-local.md", "локальный запуск"),
     ("docs/run-stand.md", "тестовый стенд"),
+    ("helm-chart/limitmodule/Chart.yaml", "Helm-чарт"),
+    ("helm-chart/limitmodule/values-stand.yaml", "values стенда"),
+    ("k8s/Dockerfile.prod", "образ для стенда"),
 ]
 
 ROOT_ABSENT = [
     ("db/13_app_technical.sql", "load_log больше не из initdb 13_*.sql"),
     ("docs/schema-ownership.md", "диаграммы владения схемой убраны"),
+    ("k8s/app", "сырые манифесты приложения"),
+    ("k8s/traefik", "Traefik уже в кластере"),
+    ("k8s/cluster", "свой kubeadm не нужен"),
+    ("k8s/images.txt", "перенос базовых образов не нужен"),
+    ("k8s/scripts/03-build-app-image.sh", "сборка образа — команды в run-stand.md"),
+    ("k8s/scripts/build-image.sh", "сборка образа — команды в run-stand.md"),
 ]
 
 
@@ -78,14 +88,19 @@ def main() -> int:
         gone = not (ROOT / rel).exists()
         print(f"{'✓' if gone else '✗'}  {title}  ({rel})")
         failed += not gone
-    cm = ROOT / "k8s/app/03-initdb-configmap.yaml"
-    text = cm.read_text(encoding="utf-8") if cm.is_file() else ""
+    chart = ROOT / "helm-chart/limitmodule"
+    chart_text = ""
+    if chart.is_dir():
+        chart_text = "\n".join(
+            p.read_text(encoding="utf-8") for p in chart.rglob("*") if p.is_file()
+        )
     for needle, title, want in (
-        ("00_extensions.sql", "initdb ConfigMap: только расширения", True),
-        ("90_test_refs", "initdb ConfigMap без фикстур 90", False),
-        ("t_lm_1_2_clients", "initdb ConfigMap без DDL витрин", False),
+        ("hostAliases", "чарт: hostAliases", True),
+        ("python -m app.wait_db", "чарт: wait на Python", True),
+        ("Middleware", "чарт без Traefik Middleware", False),
+        ("postgres:", "чарт без образа postgres", False),
     ):
-        ok = (needle in text) if want else (needle not in text)
+        ok = (needle in chart_text) if want else (needle not in chart_text)
         print(f"{'✓' if ok else '✗'}  {title}")
         failed += not ok
     version = ""

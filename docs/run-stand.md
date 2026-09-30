@@ -1,56 +1,53 @@
-# Тестовый стенд
+# Тестовый стенд t-lmts1-app51
 
-База уже есть: хост **`t-lmts1-pdb51.base.akbars.ru`**, БД **`limitmodule`**, пользователь **`limitmodule_test`**.  
-Пароль — переменная `POSTGRES_PASSWORD` в `k8s/app/01-secret.yaml` (сейчас пустая). На прод сменить `POSTGRES_HOST` в том же Secret.
+Кластер и Traefik уже есть. Postgres в кластер **не** ставим: хост **`t-lmts1-pdb51.base.akbars.ru`**, БД **`limitmodule`**, пользователь **`limitmodule_test`**. Пароль в git не класть: `--set postgresql.password=...`.
 
-`db/local` и `90`/`91` на стенд не копировать. Витрины `t_lm_*` создаёт сборщик. Этот репозиторий накатывает только `app` (Alembic).
+DSN собирается из `POSTGRES_*` (`api/app/db.py`). Прод: сменить `postgresql.host`, `app.hostAliases` и `image.registry` в values.
 
-Приложение не содержит хост в коде: DSN собирается из `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` (`api/app/db.py`). Либо целиком `DATABASE_URL`, если его задать.
+`load_log` **не** из SQL: его создаёт Job Alembic.
 
-## Порядок файлов
+## A. DBeaver, БД `limitmodule`
 
-Подставить пароль в `k8s/app/01-secret.yaml` → `POSTGRES_PASSWORD`. Postgres в кластере **не** поднимать (`04`/`05` не нужны).
+Порядок файлов из [`db/local/`](../db/local/). Повторно гонять 10–12 на уже существующих таблицах нельзя без DROP.
 
-| Шаг | Файл | Зачем |
-|---|---|---|
-| 1 | `k8s/app/00-namespace.yaml` | namespace `abb` |
-| 2 | `k8s/app/01-secret.yaml` | хост, порт, БД, пользователь, **пароль** |
-| 3 | `k8s/app/02-configmap.yaml` | `REPLICA_SCHEMA`, `WEB_DIR` |
-| 4 | `k8s/app/06-alembic-job.yaml` | `alembic upgrade head` → `app.load_log` |
-| 5 | `k8s/app/06-api.yaml` | API; ждёт хост из Secret и таблицу `app.load_log` |
-| 6 | `k8s/app/07-ingress.yaml` | вход снаружи |
+1. `00_extensions.sql` — `pg_trgm` и схемы. Если `CREATE EXTENSION` запрещён для `limitmodule_test` — этот файл выполняет DBA (суперпользователь), дальше те же 10–91 от вашего пользователя.
+2. `10_sbox_rsk_drt_marts.sql` — DDL витрин `t_lm_*`.
+3. `11_sbox_rsk_drt_refs.sql` — DDL справочников.
+4. `12_srd_replicas.sql` — DDL `srd` / `t_util`.
+5. `90_test_refs.sql` — данные справочников (файл большой).
+6. `91_test_marts.sql` — моки витрин (экран: Ростелеком, ГК ВТБ, МТС-Банк).
 
-```bash
-# в 01-secret.yaml: POSTGRES_PASSWORD
+## B. Образ и Helm
 
-kubectl apply -f k8s/app/00-namespace.yaml
-kubectl apply -f k8s/app/01-secret.yaml
-kubectl apply -f k8s/app/02-configmap.yaml
-
-kubectl apply -f k8s/app/06-alembic-job.yaml
-kubectl -n abb wait --for=condition=complete job/abb-alembic --timeout=180s
-
-kubectl apply -f k8s/app/06-api.yaml
-kubectl apply -f k8s/app/07-ingress.yaml
-```
-
-С машины, если Job неудобен:
+Из корня `Limit_module/`:
 
 ```bash
-cd api
-export POSTGRES_HOST=t-lmts1-pdb51.base.akbars.ru
-export POSTGRES_PORT=5432
-export POSTGRES_DB=limitmodule
-export POSTGRES_USER=limitmodule_test
-export POSTGRES_PASSWORD='…'
-alembic upgrade head
-alembic current
+sudo nerdctl --namespace k8s.io build \
+  --build-arg BASE_IMAGE=artifactory.akbars.tech/docker/library/python:3.12-slim \
+  --build-arg PIP_INDEX_URL=https://artifactory.akbars.tech/artifactory/api/pypi/pypi/simple \
+  --build-arg PIP_TRUSTED_HOST=artifactory.akbars.tech \
+  -f k8s/Dockerfile.prod \
+  -t t-lmts1-app51/limitmodule:0.2.0 \
+  .
+sudo nerdctl --namespace k8s.io image inspect t-lmts1-app51/limitmodule:0.2.0 >/dev/null
+
+helm upgrade --install limitmodule helm-chart/limitmodule \
+  -n limitmodule --create-namespace \
+  -f helm-chart/limitmodule/values-stand.yaml \
+  --set postgresql.password='…' \
+  --set image.tag=0.2.0
 ```
 
-Проверка: `/api/health` — `db: true`; `marts: true`, когда на сервере есть `t_lm_*`.
+Проверка:
 
-Повторный Job: `kubectl -n abb delete job abb-alembic` и apply снова.
+```bash
+curl -s http://10.188.128.138:30080/api/health
+# db: true; marts: true после SQL из раздела A
 
-Прод: в Secret поменять `POSTGRES_HOST` (и пользователя, если другой), перевыкатить API и Job.
+curl -s --get 'http://10.188.128.138:30080/api/clients' --data-urlencode 'q=рост'
+# ИНН 7707049388 (Ростелеком)
 
-`03`/`04`/`05` — только если когда-нибудь понадобится Postgres внутри кластера, не для этого стенда.
+bash k8s/scripts/04-smoke-test.sh
+```
+
+Чарт локально (без кластера): `helm lint helm-chart/limitmodule` и `helm template lm helm-chart/limitmodule -f helm-chart/limitmodule/values-stand.yaml --set postgresql.password=dummy`.
