@@ -2,8 +2,9 @@
 # Образ приложения. Собирается НА ТЕСТОВОЙ МАШИНЕ, внутри контура.
 #
 # Два отличия от api/Dockerfile:
-#   1. фронтенд (web/) и миграции (db/) вшиты в образ, а не
+#   1. фронтенд (web/) и Alembic (api/alembic) вшиты в образ, а не
 #      примонтированы томом — узел кластера не видит вашу папку;
+#      фикстуры db/local в образ не входят;
 #   2. пакеты ставятся из Artifactory, а не с pypi.org.
 #
 # Сборка:
@@ -39,10 +40,11 @@ RUN pip install --no-cache-dir \
         ${PIP_TRUSTED_HOST:+--trusted-host ${PIP_TRUSTED_HOST}} \
         -r requirements.txt
 
-# Код, фронтенд и миграции — внутрь образа
+# Код, фронтенд и ревизии Alembic — внутрь образа. Фикстуры db/local не копируются.
 COPY api/app ./app
+COPY api/alembic ./alembic
+COPY api/alembic.ini ./alembic.ini
 COPY web ./web
-COPY db ./db
 
 # Непривилегированный пользователь: под в кластере не должен работать от root
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin abb \

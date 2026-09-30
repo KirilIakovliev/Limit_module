@@ -1,6 +1,6 @@
 """
-Общие фикстуры тестов. Тесты идут против живой TEST-БД, поднятой из db/*.sql
-(docker compose up). DSN — из переменной окружения DATABASE_URL, по умолчанию
+Общие фикстуры тестов. Тесты идут против живой TEST-БД, поднятой из db/local/*.sql
+и Alembic (docker compose up). DSN — из переменной окружения DATABASE_URL, по умолчанию
 порт 5433 из docker-compose.yml (для docker-compose.local.yml — 5434).
 """
 import os
@@ -16,15 +16,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 
 def _default_dsn() -> str:
+    user = os.getenv("POSTGRES_USER", "limitmodule_test")
+    password = os.getenv("POSTGRES_PASSWORD", "localdev")
+    db = os.getenv("POSTGRES_DB", "limitmodule")
     for port in (5433, 5434):
-        dsn = f"postgresql://abb:abb@localhost:{port}/abb"
+        dsn = f"postgresql://{user}:{password}@localhost:{port}/{db}"
         try:
             with psycopg.connect(dsn, connect_timeout=1) as c:
                 c.execute("SELECT 1")
             return dsn
         except Exception:  # noqa: BLE001
             continue
-    return "postgresql://abb:abb@localhost:5433/abb"
+    return f"postgresql://{user}:{password}@localhost:5433/{db}"
 
 
 if "DATABASE_URL" not in os.environ:

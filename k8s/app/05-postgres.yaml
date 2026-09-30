@@ -68,21 +68,21 @@ spec:
           # readiness решает, слать ли трафик; liveness — перезапускать ли под.
           readinessProbe:
             exec:
-              command: ["pg_isready", "-U", "abb", "-d", "abb"]
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 3
           livenessProbe:
             exec:
-              command: ["pg_isready", "-U", "abb", "-d", "abb"]
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
             initialDelaySeconds: 30
             periodSeconds: 15
             failureThreshold: 4
           # startupProbe даёт базе спокойно подняться в первый раз:
-          # initdb на пустом томе выполняет все наши db/*.sql и это не мгновенно
+          # на пустом томе entrypoint выполняет ConfigMap (только 00_extensions.sql)
           startupProbe:
             exec:
-              command: ["pg_isready", "-U", "abb", "-d", "abb"]
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
             failureThreshold: 30
             periodSeconds: 5
           resources:

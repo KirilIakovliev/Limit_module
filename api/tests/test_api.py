@@ -71,4 +71,41 @@ def test_meta_shape(client):
 def test_health(client):
     r = client.get("/api/health")
     assert r.status_code == 200
-    assert r.json()["db"] is True
+    body = r.json()
+    assert body["db"] is True
+    assert body["marts"] is True
+    assert body["missing_marts"] == []
+
+
+def test_health_without_marts(client, monkeypatch):
+    monkeypatch.setattr("app.db.missing_marts", lambda: ["t_lm_1_2_clients"])
+    r = client.get("/api/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["db"] is True
+    assert body["marts"] is False
+    assert body["missing_marts"] == ["t_lm_1_2_clients"]
+
+
+def test_clients_503_without_marts(client, monkeypatch):
+    from psycopg.errors import UndefinedTable
+
+    def boom(*_a, **_k):
+        raise UndefinedTable("relation does not exist")
+
+    monkeypatch.setattr("app.queries.search_clients", boom)
+    r = client.get("/api/clients", params={"q": "рост"})
+    assert r.status_code == 503
+    assert "Витрины" in r.json()["detail"]
+
+
+def test_card_503_without_marts(client, monkeypatch):
+    from psycopg.errors import UndefinedTable
+
+    def boom(*_a, **_k):
+        raise UndefinedTable("relation does not exist")
+
+    monkeypatch.setattr("app.queries.get_client", boom)
+    r = client.get("/api/clients/7707049388")
+    assert r.status_code == 503
+    assert r.json()["detail"]

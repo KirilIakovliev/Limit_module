@@ -1,8 +1,13 @@
 # Лимитный модуль АББ - прототип v2
 
-Стек: PostgreSQL 16 + Redis 7 + FastAPI + статический фронтенд за nginx.
+Стек: PostgreSQL 16 + FastAPI (статика с того же `:8000`). Redis и nginx из compose временно убраны.
 
 ## Запуск
+
+**Локально** (Docker, база наполняется моками): [docs/run-local.md](docs/run-local.md).  
+**Тестовый стенд** (база `limitmodule`, без фикстур из репозитория): [docs/run-stand.md](docs/run-stand.md).
+
+`.env` — в корне `Limit_module/`, рядом с `docker-compose.yml`. Шаблон: `.env.example`.
 
 ```bash
 cp .env.example .env
@@ -10,14 +15,7 @@ docker compose up --build
 ```
 
 Открыть http://localhost:8000 — FastAPI раздаёт и API, и фронтенд.
-Тянутся два образа: `postgres:16-alpine` и `python:3.12-slim`.
-
-Полный вариант с nginx и Redis (ещё два образа):
-
-```bash
-echo "REDIS_URL=redis://cache:6379/0" >> .env
-docker compose --profile full up --build      # http://localhost:8080
-```
+Сервис `migrate` один раз применяет Alembic и завершается.
 
 ### Без Docker
 
@@ -39,10 +37,10 @@ python3 tools/build_preview.py            # -> preview.html
 
 | Сервис | Адрес |
 |---|---|
-| Интерфейс | http://localhost:8000 (с профилем full — :8080) |
+| Интерфейс | http://localhost:8000 |
 | Проверка API | http://localhost:8000/api/health |
 | Swagger | http://localhost:8000/docs |
-| Postgres | localhost:5433 (abb/abb) |
+| Postgres | localhost:5433 (`limitmodule_test` / `limitmodule`, см. `.env`) |
 
 ### `{"detail":"Not Found"}` на http://localhost:8000
 
@@ -92,7 +90,7 @@ docker logout                         # иногда помогает проту
    ```
 4. Просто повторить `docker compose up` — таймаут рукопожатия часто разовый.
 
-Схема копий DataHub и тестовые данные накатываются при первом старте (`db/*.sql`).
+Схема витрин и тестовые данные накатываются при первом старте пустого тома (`db/local/*.sql`). `app.load_log` создаёт Alembic. Как править схему и накатывать — в [docs/run-local.md](docs/run-local.md).
 Чтобы пересоздать базу с нуля: `docker compose down -v && docker compose up --build`.
 Описание перехода: [docs/database_migration.md](docs/database_migration.md), spec — [specs/current.md](specs/current.md).
 Курс в `course/` описывает **прототип v0** (изобретённая схема) и не обновлялся.
@@ -100,13 +98,15 @@ docker logout                         # иногда помогает проту
 ## Структура
 
 ```
-db/00_extensions.sql              pg_trgm, схемы sbox_rsk_drt / srd / app
-db/10_sbox_rsk_drt_marts.sql      копии итоговых витрин t_lm_*
-db/11_sbox_rsk_drt_refs.sql       копии ручных справочников stg_file_*
-db/12_srd_replicas.sql            копии реплик corpgen_* и t_util
-db/13_app_technical.sql           app.load_log
-db/90_test_refs.sql               реальные INSERT справочников (trim)
-db/91_test_marts.sql              моки витрин + строка load_log
+db/local/00_extensions.sql        pg_trgm, схемы sbox_rsk_drt / srd / app
+db/local/10_sbox_rsk_drt_marts.sql снимок DDL витрин t_lm_* (локальная имитация)
+db/local/11_sbox_rsk_drt_refs.sql  копии ручных справочников stg_file_*
+db/local/12_srd_replicas.sql       копии реплик corpgen_* и t_util
+db/local/90_test_refs.sql          реальные INSERT справочников (trim)
+db/local/91_test_marts.sql         моки витрин
+api/alembic/                      схема app.load_log
+docs/run-local.md                 локальный запуск и миграции app
+docs/run-stand.md                 тестовый стенд, база limitmodule
 api/app/db.py                     пул, search_path
 api/app/queries.py                SQL к витринам
 api/app/models.py                 модели ответов (Decimal → строка)
@@ -134,7 +134,7 @@ GET /api/health
 
 Источник истины по структуре — DDL команды данных (`context/data/ddl`).
 Backend читает только итоговые витрины `t_lm_*`. Передача копии из DataHub
-в PROD не реализована (контракта нет); на TEST данные из `db/90–91`.
+в PROD не реализована (контракта нет); на TEST данные из `db/local/90–91`.
 
 ## Поиск подсказок
 
@@ -143,10 +143,6 @@ Backend читает только итоговые витрины `t_lm_*`. Пе
 `DISTINCT ON (uparty_inn_code)` с предпочтением `source = datahub`.
 Индексы на копиях не создаются, пока `EXPLAIN ANALYZE` на PROD-объёме
 не покажет необходимость (см. docs/database_migration.md).
-
-```bash
-docker compose exec -T db psql -U abb -d abb < db/03_search_index.sql
-```
 
 ## Проверка сборки
 
@@ -171,6 +167,6 @@ python3 tools/verify_build.py
 
 ## Смена тестовых данных
 
-1. Обновить `db/90_test_refs.sql` скриптом `tools/convert_ref_inserts.py`.
-2. Дописать сценарии в `db/91_test_marts.sql` строго по колонкам DDL.
+1. Обновить `db/local/90_test_refs.sql` скриптом `tools/convert_ref_inserts.py`.
+2. Дописать сценарии в `db/local/91_test_marts.sql` строго по колонкам DDL.
 3. Пересоздать том: `docker compose down -v && docker compose up --build`.

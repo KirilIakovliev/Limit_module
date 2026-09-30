@@ -39,5 +39,5 @@ echo
 echo "Перенести в контур:"
 echo "  transfer/images/    базовые образы + SHA256SUMS"
 echo "  k8s/                манифесты, скрипты, Dockerfile.prod"
-echo "  исходники проекта   api/ web/ db/ — из них соберётся образ приложения"
+echo "  исходники проекта   api/ web/ — образ; db/local/00_extensions.sql — generate-initdb.sh"
 echo "  kube-flannel.yml    манифест сети"

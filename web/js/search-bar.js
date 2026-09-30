@@ -44,7 +44,16 @@ const SearchBar = (() => {
   async function loadSuggestions(text) {
     const requestId = ++requestCounter;
     let result = [];
-    try { result = await API.searchCompanies(text); } catch { result = []; }
+    try { result = await API.searchCompanies(text); }
+    catch (error) {
+      if (requestId !== requestCounter) return;
+      if (error.status === 503) {
+        dropdown.innerHTML = '<div class="suggestions-empty">Витрины на отображение ещё не загружены</div>';
+        openDropdown();
+        return;
+      }
+      result = [];
+    }
     if (requestId !== requestCounter) return;   // ответ устарел — пользователь допечатал
     suggestions = result;
     highlightedIndex = -1;

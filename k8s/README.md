@@ -47,7 +47,8 @@ docker pull 11 базовых  ──► ctr import на узлы
 | `services: api` | `Deployment` + `Service` | под без состояния, реплики масштабируются |
 | `services: db` | `StatefulSet` + headless `Service` | стабильное имя и привязка к тому; Deployment может поднять второй под на тот же каталог данных и повредить базу |
 | `volumes: pgdata` | `PersistentVolume` + `PVC` | на свежем кластере StorageClass нет вообще — раздел 7.1 |
-| `volumes: ./web`, `./db` | **вшито в образ** | узел не видит вашу рабочую папку |
+| `volumes: ./web` | **вшито в образ** | узел не видит вашу рабочую папку |
+| `volumes: ./db/local` (только compose) | ConfigMap `00_extensions.sql` + Job Alembic | витрины на стенде создаёт сборщик |
 | `environment:` | `ConfigMap` + `Secret` | пароли отдельно от настроек |
 | `depends_on: service_healthy` | `initContainer` с `pg_isready` | в k8s нет ожидания готовности зависимости |
 | `healthcheck:` | `readinessProbe` / `livenessProbe` | readiness решает про трафик, liveness про перезапуск |
@@ -56,8 +57,9 @@ docker pull 11 базовых  ──► ctr import на узлы
 | `profiles: full` (redis) | **не переносим** | поиск ходит прямо в Postgres |
 
 **В коде приложения менять ничего не нужно.** Всё читается из переменных
-окружения (`DATABASE_URL`, `REPLICA_SCHEMA`, `WEB_DIR`). Схема копий DataHub
-создаётся initdb из `db/*.sql`. Отличается только Dockerfile.
+окружения (`POSTGRES_HOST`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `REPLICA_SCHEMA`, `WEB_DIR`). Схема `app` —
+Job Alembic. Витрины `t_lm_*` на стенде создаёт сервис сборки, не этот
+репозиторий. Отличается только Dockerfile.
 
 ---
 
@@ -98,7 +100,8 @@ curl -LO https://raw.githubusercontent.com/flannel-io/flannel/v0.25.5/Documentat
 ```
 transfer/images/     базовые образы + SHA256SUMS
 k8s/                 манифесты, скрипты, Dockerfile.prod
-api/ web/ db/        исходники — из них соберётся образ приложения
+api/ web/            исходники — из них соберётся образ приложения
+db/local/00_extensions.sql  только расширения для generate-initdb.sh
 kube-flannel.yml
 ```
 
@@ -529,23 +532,26 @@ kubectl get nodes -o name
 
 ### 7.2. Пароли
 
-В `k8s/app/01-secret.yaml` заменить `ЗАМЕНИТЬ_ПЕРЕД_РАЗВЁРТЫВАНИЕМ` —
-**в двух местах**: `POSTGRES_PASSWORD` и внутри `DATABASE_URL`.
+В `k8s/app/01-secret.yaml` заполнить `POSTGRES_PASSWORD`. Хост стенда уже
+`t-lmts1-pdb51.base.akbars.ru`, база `limitmodule`, пользователь `limitmodule_test`.
+На прод — сменить `POSTGRES_HOST`.
 
 Secret в Kubernetes — это base64, а не шифрование: любой, кто может читать
 секреты в namespace, прочитает пароль.
 
-### 7.3. Миграции в ConfigMap
+### 7.3. Initdb ConfigMap и Alembic
 
 ```bash
 bash k8s/app/generate-initdb.sh
 ```
 
-В Compose каталог `db/` монтировался в `/docker-entrypoint-initdb.d` напрямую.
-Тома с рабочей папки в кластере нет, поэтому SQL кладётся в ConfigMap: 40 КБ
-при лимите etcd в 1 МиБ.
+В ConfigMap попадает только `db/local/00_extensions.sql` (`pg_trgm` и схемы).
+DDL витрин и фикстуры `90`/`91` не запекаются. Схему `app.load_log` создаёт
+Job `k8s/app/06-alembic-job.yaml`.
 
 ### 7.4. Применить
+
+Порядок файлов и имя базы `limitmodule`: [docs/run-stand.md](../docs/run-stand.md).
 
 Порядок важен: сначала то, на что ссылаются остальные манифесты.
 
@@ -560,9 +566,12 @@ kubectl apply -f k8s/app/05-postgres.yaml
 kubectl -n abb rollout status statefulset/abb-postgres --timeout=300s
 ```
 
-Дождитесь базы, потом API:
+Дождитесь базы, затем Alembic, потом API:
 
 ```bash
+kubectl apply -f k8s/app/06-alembic-job.yaml
+kubectl -n abb wait --for=condition=complete job/abb-alembic --timeout=180s
+
 kubectl apply -f k8s/app/06-api.yaml
 kubectl apply -f k8s/app/07-ingress.yaml
 
@@ -575,14 +584,14 @@ kubectl -n abb rollout status deploy/abb-api
 bash k8s/scripts/04-smoke-test.sh
 ```
 
-Шесть проверок, каждая про свой слой: поды, база, схема (28 компаний), API
+Шесть проверок, каждая про свой слой: поды, база, `app.load_log`, API
 изнутри, поиск с кириллицей, Traefik снаружи.
 
 Вручную:
 
 ```bash
 kubectl -n abb get pods,svc,ingress
-kubectl -n abb exec statefulset/abb-postgres -- psql -U abb -d abb -tAc "SELECT count(*) FROM companies;"
+kubectl -n abb exec statefulset/abb-postgres -- psql -U abb -d limitmodule -tAc "SELECT to_regclass('app.load_log');"
 curl -s http://<IP-узла>:30080/api/health
 ```
 
@@ -639,10 +648,10 @@ kubectl -n abb rollout undo deploy/abb-api
 
 ```bash
 kubectl -n abb exec statefulset/abb-postgres -- \
-    pg_dump -U abb -d abb --format=custom > abb-$(date +%F).dump
+    pg_dump -U abb -d limitmodule --format=custom > abb-$(date +%F).dump
 
 kubectl -n abb exec -i statefulset/abb-postgres -- \
-    pg_restore -U abb -d abb --clean --if-exists < abb-2026-09-16.dump
+    pg_restore -U abb -d limitmodule --clean --if-exists < abb-2026-09-16.dump
 ```
 
 Проверьте восстановление хотя бы раз: копия, которую не восстанавливали,
@@ -729,18 +738,19 @@ kubectl -n kube-system logs -l k8s-app=kube-dns --tail=50
 выполняются **только при инициализации пустого тома**.
 
 ```bash
-kubectl -n abb exec statefulset/abb-postgres -- psql -U abb -d abb -c '\dt'
+kubectl -n abb exec statefulset/abb-postgres -- psql -U abb -d limitmodule -c '\dt'
 ```
 
-Пусто — накатите базовую схему вручную:
+Пусто по витринам — их создаёт сервис сборки, не этот репозиторий.
+Схему приложения:
 
 ```bash
-kubectl -n abb exec -i statefulset/abb-postgres -- psql -U abb -d abb < db/00_extensions.sql
-kubectl -n abb exec -i statefulset/abb-postgres -- psql -U abb -d abb < db/10_sbox_rsk_drt_marts.sql
-# далее 11, 12, 13 и при необходимости 90, 91
+kubectl -n abb delete job abb-alembic --ignore-not-found
+kubectl apply -f k8s/app/06-alembic-job.yaml
 ```
 
-Либо пересоздайте PVC, чтобы initdb из ConfigMap `abb-initdb` выполнил все `db/*.sql`.
+Initdb ConfigMap содержит только расширения. Не копируйте `db/local/90*.sql`
+и `91*.sql` на стенд.
 
 ---
 
@@ -782,7 +792,7 @@ k8s/
 │   └── 05-service.yaml          NodePort 30080/30443
 └── app/
     ├── 00-namespace.yaml
-    ├── 01-secret.yaml           ЗАМЕНИТЬ пароль в двух местах
+    ├── 01-secret.yaml           хост/логин; заполнить POSTGRES_PASSWORD
     ├── 02-configmap.yaml
     ├── 03-initdb-configmap.yaml СГЕНЕРИРОВАН, не править руками
     ├── 04-postgres-storage.yaml ПОДСТАВИТЬ имя узла

@@ -5,8 +5,9 @@
 тот же порядок колонок. Ограничения (PK / FK / UNIQUE / NOT NULL / DEFAULT / CHECK) **не добавляются** —
 их нет в источнике. Все колонки nullable.
 
-Файлы PostgreSQL DDL: `db/10_sbox_rsk_drt_marts.sql`, `db/11_sbox_rsk_drt_refs.sql`,
-`db/12_srd_replicas.sql`, `db/13_app_technical.sql` (единственная техническая таблица приложения).
+Файлы PostgreSQL DDL (локальный снимок): `db/local/10_sbox_rsk_drt_marts.sql`,
+`db/local/11_sbox_rsk_drt_refs.sql`, `db/local/12_srd_replicas.sql`.
+`app.load_log` создаёт Alembic (`api/alembic/versions/001_app_load_log.py`), не SQL в initdb.
 
 ## 1. Состав таблиц (13 таблиц, 216 колонок)
 
@@ -236,5 +237,5 @@ DECIMAL(38,8) → NUMERIC(38,8): main_nm_amt, main_eq_amt, mainover_nm_amt, main
 
 ## 6. Верификация
 
-- `psql -v ON_ERROR_STOP=1 -f db/1x_*.sql` на чистой БД — без ошибок.
+- `psql -v ON_ERROR_STOP=1 -f db/local/1x_*.sql` на чистой БД — без ошибок.
 - `api/tests/test_schema.py` сравнивает `information_schema.columns` (имя, тип, precision/scale, порядок) с ожидаемым списком из этого документа и проверяет отсутствие PK/FK/NOT NULL на таблицах `sbox_rsk_drt.*` / `srd.*`.

@@ -2,7 +2,7 @@
 """
 Конвертация реальных INSERT-выгрузок ручных справочников DataHub
 (context/data/ddl/Инсерты для ручных справочников/*.sql) в компактный
-детерминированный db/90_test_refs.sql для TEST-БД.
+детерминированный db/local/90_test_refs.sql для TEST-БД.
 
 Что делает:
   * читает каждый INSERT INTO sbox_rsk_drt.<таблица> (...) VALUES (...),(...);
@@ -19,7 +19,7 @@
 
 Запуск (из корня Limit_module):
     python3 tools/convert_ref_inserts.py \
-        "../context/data/ddl/Инсерты для ручных справочников" db/90_test_refs.sql
+        "../context/data/ddl/Инсерты для ручных справочников" db/local/90_test_refs.sql
 """
 from __future__ import annotations
 

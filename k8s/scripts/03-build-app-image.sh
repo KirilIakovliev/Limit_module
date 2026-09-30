@@ -28,7 +28,7 @@ PIP_TRUSTED_HOST="${PIP_TRUSTED_HOST:-artifactory.akbars.tech}"
 cd "$ROOT"
 
 echo "== проверка исходников"
-for p in api/requirements.txt api/app web db k8s/Dockerfile.prod; do
+for p in api/requirements.txt api/app api/alembic.ini api/alembic web db/local/00_extensions.sql k8s/Dockerfile.prod; do
     [ -e "$p" ] || { echo "НЕТ: $p — запускайте из корня проекта"; exit 1; }
 done
 echo "   на месте"

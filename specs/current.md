@@ -8,7 +8,7 @@
 
 ## Контракт данных
 
-- БД `abb` / `limitmodule`: схемы `sbox_rsk_drt`, `srd`, `app`.
+- БД `limitmodule`: схемы `sbox_rsk_drt`, `srd`, `app`.
 - **UI читает только** `t_lm_1_2_clients`, `t_lm_1_2_gk_info`, `t_lm_1_3_limits`, `t_lm_egar_limits` (+ `app.load_log` для свежести).
 - `stg_file_*`, `srd.corpgen_*`, `t_util` лежат на том же сервере. Backend их не читает. Сборка зелёных витрин из серых **не реализована** (это слой DataHub / будущий job приложения).
 - На копиях DataHub нет PK/FK/NOT NULL/DEFAULT. Ключ клиента — ИНН. Дедуп: `source=datahub` предпочтительнее `egar`.
@@ -37,8 +37,8 @@
 
 ## TEST-данные
 
-- `db/90_test_refs.sql` — реальные INSERT справочников (Excel/выгрузки), UI не читает.
-- `db/91_test_marts.sql` — моки `t_lm_*` (сценарии S01–S14). Для полного клика: Ростелеком `7707049388`.
+- `db/local/90_test_refs.sql` — реальные INSERT справочников (Excel/выгрузки), UI не читает.
+- `db/local/91_test_marts.sql` — моки `t_lm_*` (сценарии S01–S14). Для полного клика: Ростелеком `7707049388`.
 
 ## Не в этой версии
 
