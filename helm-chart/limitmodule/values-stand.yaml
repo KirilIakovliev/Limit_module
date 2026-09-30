@@ -8,6 +8,7 @@ image:
 
 app:
   replicas: 1
+  hostPort: 8000
   hostAliases:
     - ip: "10.188.0.62"
       hostnames:

@@ -18,6 +18,8 @@ app:
       cpu: "1"
       memory: 1Gi
   hostAliases: []
+  # На ноде снаружи: hostPort (не NodePort — 8000 вне диапазона 30000–32767).
+  hostPort: null
 
 postgresql:
   host: db
