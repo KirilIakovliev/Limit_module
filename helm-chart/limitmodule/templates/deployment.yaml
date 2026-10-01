@@ -56,6 +56,15 @@ spec:
         - name: api
           image: {{ include "limitmodule.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - uvicorn
+            - app.main:app
+            - --host
+            - 0.0.0.0
+            - --port
+            - {{ .Values.app.port | quote }}
+            - --workers
+            - "2"
           envFrom:
             - configMapRef:
                 name: {{ include "limitmodule.fullname" . }}-config
@@ -94,6 +103,9 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+              {{- if .Values.app.bindLowPort }}
+              add: ["NET_BIND_SERVICE"]
+              {{- end }}
           volumeMounts:
             - name: tmp
               mountPath: /tmp

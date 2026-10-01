@@ -8,7 +8,9 @@ image:
 
 app:
   replicas: 1
-  hostPort: 8000
+  port: 80
+  hostPort: 80
+  bindLowPort: true
   hostNetwork: true
   dnsPolicy: ClusterFirstWithHostNet
   hostAliases:

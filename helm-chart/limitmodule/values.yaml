@@ -8,6 +8,7 @@ image:
 app:
   replicas: 1
   port: 8000
+  bindLowPort: false
   replicaSchema: sbox_rsk_drt
   webDir: /srv/web
   resources:
