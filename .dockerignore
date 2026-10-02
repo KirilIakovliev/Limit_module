@@ -1,0 +1,35 @@
+# Контекст сборки — корень репозитория (Dockerfile.prod).
+# В образ копируются только:
+#   api/requirements.txt, api/app, api/alembic, api/alembic.ini, web
+# Не исключать эти пути.
+
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+.coverage
+htmlcov
+
+.venv
+venv
+
+preview.html
+
+docs
+specs
+tools
+db
+deployment
+api/tests
+api/requirements-dev.txt
+data
+docker-compose.yml
+docker-compose.local.yml
+docker-compose.override.yml

@@ -4,10 +4,11 @@
 
 ```
 deployment/
-├── smoke-test.sh                health и поиск через kubectl exec
 ├── helm-chart/limitmodule       Helm-чарт: API, Service, Ingress, Job Alembic
 └── nginx/limitmodule.conf       что положить в sites-available (вход :80)
 ```
+
+После выката — два read-only запроса из [docs/run-stand.md](../docs/run-stand.md): `/api/health` и поиск `/api/clients?q=рост`. Отдельного smoke-скрипта нет.
 
 Образ стенда: [`Dockerfile.prod`](../Dockerfile.prod) в корне `Limit_module/`.
 

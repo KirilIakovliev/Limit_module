@@ -72,7 +72,9 @@ kubectl get pods -n limitmodule -o wide
 
 curl -s -H 'Host: t-lmts1-app51.base.akbars.ru' http://10.188.128.138:30080/api/health
 
-bash deployment/smoke-test.sh
+curl -s -G -H 'Host: t-lmts1-app51.base.akbars.ru' \
+  --data-urlencode 'q=рост' \
+  'http://10.188.128.138:30080/api/clients'
 ```
 
 Внешний `:80` — nginx на хосте, конфиг [`deployment/nginx/limitmodule.conf`](../deployment/nginx/limitmodule.conf):
