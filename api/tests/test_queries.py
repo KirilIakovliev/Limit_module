@@ -1,4 +1,4 @@
-"""Проверки SQL и маппинга queries.py на тестовых моках (db/91_test_marts.sql)."""
+"""Проверки SQL и маппинга queries.py на тестовых моках (db/local/91_test_marts.sql)."""
 from decimal import Decimal
 
 import pytest

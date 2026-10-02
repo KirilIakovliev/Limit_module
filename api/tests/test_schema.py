@@ -362,7 +362,16 @@ def test_only_one_application_table(conn):
     rows = conn.execute(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = 'app' AND table_type='BASE TABLE'"
     ).fetchall()
-    assert [r["table_name"] for r in rows] == ["load_log"]
+    names = {r["table_name"] for r in rows}
+    assert "load_log" in names
+    assert names <= {"load_log", "alembic_version"}
+
+
+def test_alembic_version_in_app(conn):
+    rows = conn.execute(
+        "SELECT table_schema FROM information_schema.tables WHERE table_name = 'alembic_version'"
+    ).fetchall()
+    assert [r["table_schema"] for r in rows] == ["app"]
 
 
 def test_no_views_in_replica_or_app_schemas(conn):

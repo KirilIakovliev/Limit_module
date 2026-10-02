@@ -17,7 +17,17 @@
   let loaded = null;             // { company, data } — то, что показано и выгружается
   let hideActionBarTimer = null; // отложенное скрытие панели
 
+  const MARTS_MSG = 'Витрины на отображение ещё не загружены. Поиск и карточка недоступны, пока таблицы не появятся.';
+
   SearchBar.onSubmit(loadCompany);
+
+  API.health().then(h => {
+    if (h && h.marts === false) {
+      resultPanel.classList.add('is-visible');
+      errorMessage.textContent = MARTS_MSG;
+      errorBox.classList.add('is-visible');
+    }
+  });
 
   /* Переход на карточку другой компании из структуры ГК.
      Это полноценный новый запрос — тот же цикл, что и при поиске:
@@ -39,8 +49,9 @@
       await loadCompany(company);
     } catch (error) {
       processing.classList.remove('is-visible');
-      errorMessage.textContent =
-        'Не удалось открыть карточку выбранной компании. Проверьте соединение с базой и повторите.';
+      errorMessage.textContent = error.status === 503
+        ? MARTS_MSG
+        : 'Не удалось открыть карточку выбранной компании. Проверьте соединение с базой и повторите.';
       errorBox.classList.add('is-visible');
       console.error(error);
     }
@@ -75,8 +86,9 @@
       showActionBar();
     } catch (error) {
       processing.classList.remove('is-visible');
-      errorMessage.textContent =
-        `Не удалось получить данные по компании «${company.name}». Проверьте соединение с базой и повторите.`;
+      errorMessage.textContent = error.status === 503
+        ? MARTS_MSG
+        : `Не удалось получить данные по компании «${company.name}». Проверьте соединение с базой и повторите.`;
       errorBox.classList.add('is-visible');
       console.error(error);
     } finally {

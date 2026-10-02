@@ -1,0 +1,31 @@
+# Образ стенда (api + web + Alembic). Сборка: docs/run-stand.md, контекст — этот каталог.
+# База образа и pip — Artifactory (в контуре нет docker.io / pypi.org).
+ARG BASE_IMAGE=artifactory.akbars.tech/docker/library/python:3.12-slim
+FROM ${BASE_IMAGE}
+
+ARG PIP_INDEX_URL=https://artifactory.akbars.tech/artifactory/api/pypi/pypi/simple
+ARG PIP_TRUSTED_HOST=artifactory.akbars.tech
+
+WORKDIR /srv
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    WEB_DIR=/srv/web \
+    REPLICA_SCHEMA=sbox_rsk_drt
+
+COPY api/requirements.txt .
+RUN pip install --no-cache-dir \
+        --index-url ${PIP_INDEX_URL} \
+        --trusted-host ${PIP_TRUSTED_HOST} \
+        -r requirements.txt
+
+COPY api/app ./app
+COPY api/alembic ./alembic
+COPY api/alembic.ini ./alembic.ini
+COPY web ./web
+
+RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin abb \
+    && chown -R 10001:10001 /srv
+USER 10001
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

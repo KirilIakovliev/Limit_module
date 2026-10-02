@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "limitmodule.fullname" . }}
+  labels:
+    {{- include "limitmodule.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "limitmodule.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.app.port }}
+      targetPort: http

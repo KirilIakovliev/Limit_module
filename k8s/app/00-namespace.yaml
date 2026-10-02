@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: abb
-  labels:
-    app.kubernetes.io/part-of: abb-limit-module

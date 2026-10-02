@@ -34,11 +34,36 @@ CHECKS = [
     ("js/table-views.js", "currentCell",          "текущая компания без клика"),
     ("js/app.js",      "Открываем карточку",     "полный цикл запроса при переходе"),
     ("js/api.js",      "/clients?",              "поиск по витрине клиентов"),
+    ("js/api.js",      "/health",                "health для запасного экрана"),
+    ("js/app.js",      "Витрины на отображение", "запасной экран без витрин"),
     ("js/format.js",   "YYYY-MM-DD",             "даты без сдвига зоны"),
 ]
 
 ABSENT = [
     ("js/demo-data.js", "демо-данные удалены"),
+]
+
+ROOT_PRESENT = [
+    ("db/local/00_extensions.sql", "локальный initdb: расширения"),
+    ("db/local/10_sbox_rsk_drt_marts.sql", "локальный снимок витрин"),
+    ("db/local/91_test_marts.sql", "локальные моки витрин"),
+    ("api/alembic/versions/001_app_load_log.py", "Alembic: app.load_log"),
+    ("api/app/wait_db.py", "ожидание БД без образа postgres"),
+    ("docs/run-local.md", "локальный запуск"),
+    ("docs/run-stand.md", "тестовый стенд"),
+    ("specs/current.md", "оглавление spec"),
+    ("specs/2026-10-02-alembic-helm-stand.md", "актуальная spec стенда"),
+    ("deployment/helm-chart/limitmodule/Chart.yaml", "Helm-чарт"),
+    ("deployment/helm-chart/limitmodule/values-stand.yaml", "values стенда"),
+    ("Dockerfile.prod", "образ для стенда"),
+    ("deployment/nginx/limitmodule.conf", "nginx-вход на 80"),
+]
+
+ROOT_ABSENT = [
+    ("db/13_app_technical.sql", "load_log больше не из initdb 13_*.sql"),
+    ("docs/schema-ownership.md", "диаграммы владения схемой убраны"),
+    ("deployment/k8s", "сырые манифесты k8s убраны"),
+    ("deployment/Dockerfile.prod", "стендовый Dockerfile в корне репозитория"),
 ]
 
 
@@ -53,6 +78,30 @@ def main() -> int:
         gone = not (WEB / rel).exists()
         print(f"{'✓' if gone else '✗'}  {title}  ({rel})")
         failed += not gone
+    for rel, title in ROOT_PRESENT:
+        path = ROOT / rel
+        ok = path.is_file()
+        print(f"{'✓' if ok else '✗'}  {title}  ({rel})")
+        failed += not ok
+    for rel, title in ROOT_ABSENT:
+        gone = not (ROOT / rel).exists()
+        print(f"{'✓' if gone else '✗'}  {title}  ({rel})")
+        failed += not gone
+    chart = ROOT / "deployment/helm-chart/limitmodule"
+    chart_text = ""
+    if chart.is_dir():
+        chart_text = "\n".join(
+            p.read_text(encoding="utf-8") for p in chart.rglob("*") if p.is_file()
+        )
+    for needle, title, want in (
+        ("hostAliases", "чарт: hostAliases", True),
+        ("python -m app.wait_db", "чарт: wait на Python", True),
+        ("Middleware", "чарт без Traefik Middleware", False),
+        ("postgres:", "чарт без образа postgres", False),
+    ):
+        ok = (needle in chart_text) if want else (needle not in chart_text)
+        print(f"{'✓' if ok else '✗'}  {title}")
+        failed += not ok
     version = ""
     head = (WEB / "index.html").read_text(encoding="utf-8")
     if "?v=" in head:

@@ -65,13 +65,14 @@ SQL в `queries.py` без схемы в именах таблиц. `Decimal` у
 
 Только `app.load_log(id, table_name, loaded_at, data_date, row_count, note)`.
 Нужна для БТ 2.2 / 2.5.3 (дата обновления и предупреждение >24 ч).
-На TEST строку пишет `db/91_test_marts.sql`.
+На TEST строку пишет сервис `migrate` (`python -m app.seed_local`) после Alembic.
 
 ## Изменения кода по файлам
 
 | Файл | Было | Стало | Зачем |
 |---|---|---|---|
-| `db/00,10–13_*.sql` | не было | DDL копий + `app` | структура 1:1 |
+| `db/local/00,10–12,90,91_*.sql` | не было | снимок витрин + фикстуры | локальный initdb |
+| `api/alembic` | не было | `app.load_log` | схема приложения |
 | `db/01–06_*.sql` | схема прототипа | удалены | не DataHub |
 | `api/app/db.py` | пул в `main.py` | пул + `search_path` | одно подключение |
 | `api/app/queries.py` | SQL в `main.py` | константы и функции | параметризованный SQL |
@@ -81,7 +82,7 @@ SQL в `queries.py` без схемы в именах таблиц. `Decimal` у
 | `web/js/tab-tree.js` | id, события, отчётность | inn, заглушки сублимитов/резервов | состав БТ |
 | `web/js/table-views.js` | ₽, суммы в JS | валюта строки, rest_lim из витрины | не пересчитывать |
 | `web/js/format.js` | `new Date`, всегда ₽ | ISO-дата, `money(v, currency)` | зона и валюта |
-| `k8s/app/02-configmap.yaml` | GROUPS/LIMITS/RESERVES_SQL | `REPLICA_SCHEMA` | нет ensure_schema |
+| Helm ConfigMap | GROUPS/LIMITS/RESERVES_SQL | `REPLICA_SCHEMA` | нет ensure_schema |
 
 ## UI → DB Mapping
 
@@ -109,8 +110,8 @@ SQL в `queries.py` без схемы в именах таблиц. `Decimal` у
 
 | Класс | Таблицы | Источник |
 |---|---|---|
-| READY | `stg_file_client_limit` 897, `stg_file_egar_clients` 375, `stg_file_group_limit` 368 | `tools/convert_ref_inserts.py` → `db/90_test_refs.sql` |
-| PARTIAL / моки | `t_lm_1_2_clients`, `t_lm_1_2_gk_info`, `t_lm_1_3_limits`, 3 строки `t_lm_egar_limits` | `db/91_test_marts.sql` |
+| READY | `stg_file_client_limit` 897, `stg_file_egar_clients` 375, `stg_file_group_limit` 368 | `tools/convert_ref_inserts.py` → `db/local/90_test_refs.sql` |
+| PARTIAL / моки | `t_lm_1_2_clients`, `t_lm_1_2_gk_info`, `t_lm_1_3_limits`, 3 строки `t_lm_egar_limits` | `db/local/91_test_marts.sql` |
 | EMPTY | `stg_file_raroc`, `t_util`, 4 `srd.*` | не мокаются |
 
 Сценарии S01–S14 перечислены в шапке `91_test_marts.sql`.

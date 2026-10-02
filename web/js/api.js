@@ -21,6 +21,7 @@ const API = (() => {
   }
 
   return {
+    health: () => call('/health').catch(() => null),
     meta: () => call('/meta').catch(() => null),
     searchCompanies: q => call(`/clients?q=${encodeURIComponent(q)}&limit=8`),
     client: inn => call(`/clients/${encodeURIComponent(inn)}`),

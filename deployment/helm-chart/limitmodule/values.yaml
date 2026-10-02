@@ -1,0 +1,41 @@
+# Локальный compose / значения по умолчанию. Стенд: values-stand.yaml
+image:
+  registry: t-lmts1-app51
+  repository: limitmodule
+  tag: "0.2.0"
+  pullPolicy: IfNotPresent
+
+app:
+  replicas: 1
+  port: 8000
+  bindLowPort: false
+  replicaSchema: sbox_rsk_drt
+  webDir: /srv/web
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  hostAliases: []
+  hostNetwork: false
+  dnsPolicy: ClusterFirst
+  # На ноде снаружи: hostPort (не NodePort — 8000 вне диапазона 30000–32767).
+  hostPort: null
+
+postgresql:
+  host: db
+  port: 5432
+  database: limitmodule
+  username: limitmodule_test
+  password: ""
+
+ingress:
+  enabled: true
+  className: traefik
+  host: ""
+  extraHostless: true
+
+alembic:
+  backoffLimit: 6
