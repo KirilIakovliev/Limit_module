@@ -29,10 +29,17 @@ spec:
       hostAliases:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      # Для hostNetwork на :80 нужен root: capability NET_BIND_SERVICE в этом runtime не даёт bind low port.
       securityContext:
+        {{- if .Values.app.bindLowPort }}
+        runAsNonRoot: false
+        runAsUser: 0
+        runAsGroup: 0
+        {{- else }}
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
+        {{- end }}
       initContainers:
         - name: wait-for-app-schema
           image: {{ include "limitmodule.image" . }}
@@ -99,7 +106,7 @@ spec:
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}
           securityContext:
-            allowPrivilegeEscalation: false
+            allowPrivilegeEscalation: {{ .Values.app.bindLowPort }}
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]

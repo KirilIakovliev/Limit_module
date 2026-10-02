@@ -107,7 +107,9 @@ db/local/91_test_marts.sql         моки витрин
 api/alembic/                      схема app.load_log
 docs/run-local.md                 локальный запуск и миграции app
 docs/run-stand.md                 стенд: SQL в DBeaver, затем Helm
-helm-chart/limitmodule            чарт API + Job Alembic (внешний Postgres)
+Dockerfile.prod                   образ стенда (контекст — корень репозитория)
+deployment/helm-chart/limitmodule чарт API + Job Alembic (внешний Postgres)
+deployment/nginx                  nginx-вход на :80 к Traefik NodePort
 api/app/db.py                     пул, search_path
 api/app/queries.py                SQL к витринам
 api/app/models.py                 модели ответов (Decimal → строка)
@@ -115,7 +117,7 @@ api/app/main.py                   /api/clients, /api/groups, /api/meta
 web/js/api.js                     клиент API (ключ — ИНН)
 web/js/tab-tree.js                дерево вкладок по БТ
 web/js/table-views.js             таблицы карточки / ГК / лимитов
-specs/current.md                  зафиксированная spec этой версии
+specs/current.md                  оглавление датированных spec
 docs/database_migration.md        переход с прототипа
 docs/ddl_conversion.md            Impala → PostgreSQL, GAP
 ```

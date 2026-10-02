@@ -51,20 +51,19 @@ ROOT_PRESENT = [
     ("api/app/wait_db.py", "ожидание БД без образа postgres"),
     ("docs/run-local.md", "локальный запуск"),
     ("docs/run-stand.md", "тестовый стенд"),
-    ("helm-chart/limitmodule/Chart.yaml", "Helm-чарт"),
-    ("helm-chart/limitmodule/values-stand.yaml", "values стенда"),
-    ("k8s/Dockerfile.prod", "образ для стенда"),
+    ("specs/current.md", "оглавление spec"),
+    ("specs/2026-10-02-alembic-helm-stand.md", "актуальная spec стенда"),
+    ("deployment/helm-chart/limitmodule/Chart.yaml", "Helm-чарт"),
+    ("deployment/helm-chart/limitmodule/values-stand.yaml", "values стенда"),
+    ("Dockerfile.prod", "образ для стенда"),
+    ("deployment/nginx/limitmodule.conf", "nginx-вход на 80"),
 ]
 
 ROOT_ABSENT = [
     ("db/13_app_technical.sql", "load_log больше не из initdb 13_*.sql"),
     ("docs/schema-ownership.md", "диаграммы владения схемой убраны"),
-    ("k8s/app", "сырые манифесты приложения"),
-    ("k8s/traefik", "Traefik уже в кластере"),
-    ("k8s/cluster", "свой kubeadm не нужен"),
-    ("k8s/images.txt", "перенос базовых образов не нужен"),
-    ("k8s/scripts/03-build-app-image.sh", "сборка образа — команды в run-stand.md"),
-    ("k8s/scripts/build-image.sh", "сборка образа — команды в run-stand.md"),
+    ("deployment/k8s", "сырые манифесты k8s убраны"),
+    ("deployment/Dockerfile.prod", "стендовый Dockerfile в корне репозитория"),
 ]
 
 
@@ -88,7 +87,7 @@ def main() -> int:
         gone = not (ROOT / rel).exists()
         print(f"{'✓' if gone else '✗'}  {title}  ({rel})")
         failed += not gone
-    chart = ROOT / "helm-chart/limitmodule"
+    chart = ROOT / "deployment/helm-chart/limitmodule"
     chart_text = ""
     if chart.is_dir():
         chart_text = "\n".join(

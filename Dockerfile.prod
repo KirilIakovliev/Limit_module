@@ -1,5 +1,4 @@
-# Образ приложения. Сборка nerdctl — docs/run-stand.md.
-# Фронт и Alembic вшиты; db/local не копируется.
+# Образ стенда (api + web + Alembic). Сборка: docs/run-stand.md, контекст — этот каталог.
 # База образа и pip — Artifactory (в контуре нет docker.io / pypi.org).
 ARG BASE_IMAGE=artifactory.akbars.tech/docker/library/python:3.12-slim
 FROM ${BASE_IMAGE}

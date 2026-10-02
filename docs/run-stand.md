@@ -28,7 +28,7 @@ sudo nerdctl --namespace k8s.io build \
   --build-arg BASE_IMAGE=artifactory.akbars.tech/docker/library/python:3.12-slim \
   --build-arg PIP_INDEX_URL=https://artifactory.akbars.tech/artifactory/api/pypi/pypi/simple \
   --build-arg PIP_TRUSTED_HOST=artifactory.akbars.tech \
-  -f k8s/Dockerfile.prod \
+  -f Dockerfile.prod \
   -t t-lmts1-app51/limitmodule:0.2.0 \
   .
 sudo nerdctl --namespace k8s.io image inspect t-lmts1-app51/limitmodule:0.2.0 >/dev/null
@@ -54,27 +54,38 @@ curl -s http://127.0.0.1:8000/api/health
 # db: true; marts: true после SQL из раздела A
 ```
 
-Потом Helm (контейнер на 8000 **остановить** — порт на ноде займёт под):
+Потом Helm. Приложение остаётся в pod-сети на `8000`; внешний вход без порта делает nginx через Traefik NodePort `30080`.
 
 ```bash
-helm upgrade --install limitmodule helm-chart/limitmodule \
+helm upgrade --install limitmodule deployment/helm-chart/limitmodule \
   -n limitmodule --create-namespace \
-  -f helm-chart/limitmodule/values-stand.yaml \
+  -f deployment/helm-chart/limitmodule/values-stand.yaml \
   --set postgresql.password="$POSTGRES_PASSWORD" \
   --set image.tag=0.2.0
 ```
 
-Проверка (снаружи ноды — **8000**, не Traefik):
+Проверка внутри кластера и через Traefik:
 
 ```bash
-curl -s http://10.188.128.138:8000/api/health
-curl -s --get 'http://10.188.128.138:8000/api/clients' --data-urlencode 'q=рост'
-# ИНН 7707049388 (Ростелеком)
+kubectl get pods -n limitmodule -o wide
+# IP приложения должен быть 10.244.x.x, не IP ноды.
 
-# через Traefik по-прежнему :30080
-curl -s http://10.188.128.138:30080/api/health
+curl -s -H 'Host: t-lmts1-app51.base.akbars.ru' http://10.188.128.138:30080/api/health
 
-bash k8s/scripts/04-smoke-test.sh
+bash deployment/smoke-test.sh
 ```
 
-Чарт локально (без кластера): `helm lint helm-chart/limitmodule` и `helm template lm helm-chart/limitmodule -f helm-chart/limitmodule/values-stand.yaml --set postgresql.password=dummy`.
+Внешний `:80` — nginx на хосте, конфиг [`deployment/nginx/limitmodule.conf`](../deployment/nginx/limitmodule.conf):
+
+```bash
+sudo apt update && sudo apt install -y nginx
+sudo cp deployment/nginx/limitmodule.conf /etc/nginx/sites-available/limitmodule.conf
+sudo ln -sf /etc/nginx/sites-available/limitmodule.conf /etc/nginx/sites-enabled/limitmodule.conf
+sudo nginx -t
+sudo systemctl enable --now nginx
+sudo systemctl reload nginx
+
+curl -s http://t-lmts1-app51.base.akbars.ru/api/health
+```
+
+Чарт локально (без кластера): `helm lint deployment/helm-chart/limitmodule` и `helm template lm deployment/helm-chart/limitmodule -f deployment/helm-chart/limitmodule/values-stand.yaml --set postgresql.password=dummy`.
