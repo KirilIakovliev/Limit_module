@@ -1,8 +1,13 @@
 # Лимитный модуль АББ - прототип v2
 
-Стек: PostgreSQL 16 + Redis 7 + FastAPI + статический фронтенд за nginx.
+Стек: PostgreSQL 16 + FastAPI (статика с того же `:8000`). Redis и nginx из compose временно убраны.
 
 ## Запуск
+
+**Локально** (Docker, база наполняется моками): [docs/run-local.md](docs/run-local.md).  
+**Тестовый стенд** (DBeaver `db/local`, затем Helm): [docs/run-stand.md](docs/run-stand.md).
+
+`.env` — в корне `Limit_module/`, рядом с `docker-compose.yml`. Шаблон: `.env.example`.
 
 ```bash
 cp .env.example .env
@@ -10,14 +15,7 @@ docker compose up --build
 ```
 
 Открыть http://localhost:8000 — FastAPI раздаёт и API, и фронтенд.
-Тянутся два образа: `postgres:16-alpine` и `python:3.12-slim`.
-
-Полный вариант с nginx и Redis (ещё два образа):
-
-```bash
-echo "REDIS_URL=redis://cache:6379/0" >> .env
-docker compose --profile full up --build      # http://localhost:8080
-```
+Сервис `migrate` один раз применяет Alembic и завершается.
 
 ### Без Docker
 
@@ -39,10 +37,10 @@ python3 tools/build_preview.py            # -> preview.html
 
 | Сервис | Адрес |
 |---|---|
-| Интерфейс | http://localhost:8000 (с профилем full — :8080) |
+| Интерфейс | http://localhost:8000 |
 | Проверка API | http://localhost:8000/api/health |
 | Swagger | http://localhost:8000/docs |
-| Postgres | localhost:5433 (abb/abb) |
+| Postgres | localhost:5433 (`limitmodule_test` / `limitmodule`, см. `.env`) |
 
 ### `{"detail":"Not Found"}` на http://localhost:8000
 
@@ -92,94 +90,62 @@ docker logout                         # иногда помогает проту
    ```
 4. Просто повторить `docker compose up` — таймаут рукопожатия часто разовый.
 
-Схема и демо-данные накатываются автоматически при первом старте (`db/*.sql`).
+Схема витрин и тестовые данные накатываются при первом старте пустого тома (`db/local/*.sql`). `app.load_log` создаёт Alembic. Как править схему и накатывать — в [docs/run-local.md](docs/run-local.md).
 Чтобы пересоздать базу с нуля: `docker compose down -v && docker compose up --build`.
+Описание перехода: [docs/database_migration.md](docs/database_migration.md), spec — [specs/current.md](specs/current.md).
+Курс в `course/` описывает **прототип v0** (изобретённая схема) и не обновлялся.
 
 ## Структура
 
 ```
-db/01_schema.sql        таблицы + индексы pg_trgm
-db/03_search_index.sql  колонка search_name и индексы под подсказки
-db/04_groups.sql        группы компаний и единый лимит
-db/05_limits.sql        блоки лимитов, заявки, новые компании
-db/06_reserves.sql      позиции резервов РСБУ и МСФО
-db/02_seed.sql          20 компаний, показатели, лимиты, сублимиты, резервы
-api/app/main.py         эндпоинты
-api/app/cache.py        обёртка над Redis (работает и без него)
-api/scripts/refresh_companies.py   обновление справочника
-web/index.html            разметка
-web/css/styles.css        стили
-web/js/format.js          форматирование чисел и дат
-web/js/api.js             единственное место, знающее про бэкенд
-web/js/search-bar.js      строка поиска и подсказки
-web/js/tab-tree.js        дерево вкладок
-web/js/table-views.js     рендер таблиц и списка событий
-web/js/events.js          поиск отклонений для вкладки «События»
-web/js/excel-export.js    сборка книги Excel по листам
-web/js/xlsx-writer.js     генератор XLSX без внешних библиотек
-web/js/app.js             связка
-web/js/demo-data.js       демо-данные (fallback, если API недоступен)
+db/local/00_extensions.sql        pg_trgm, схемы sbox_rsk_drt / srd / app
+db/local/10_sbox_rsk_drt_marts.sql снимок DDL витрин t_lm_* (локальная имитация)
+db/local/11_sbox_rsk_drt_refs.sql  копии ручных справочников stg_file_*
+db/local/12_srd_replicas.sql       копии реплик corpgen_* и t_util
+db/local/90_test_refs.sql          реальные INSERT справочников (trim)
+db/local/91_test_marts.sql         моки витрин
+api/alembic/                      схема app.load_log
+docs/run-local.md                 локальный запуск и миграции app
+docs/run-stand.md                 стенд: SQL в DBeaver, затем Helm
+Dockerfile.prod                   образ стенда (контекст — корень репозитория)
+deployment/helm-chart/limitmodule чарт API + Job Alembic (внешний Postgres)
+deployment/nginx                  nginx-вход на :80 к Traefik NodePort
+api/app/db.py                     пул, search_path
+api/app/queries.py                SQL к витринам
+api/app/models.py                 модели ответов (Decimal → строка)
+api/app/main.py                   /api/clients, /api/groups, /api/meta
+web/js/api.js                     клиент API (ключ — ИНН)
+web/js/tab-tree.js                дерево вкладок по БТ
+web/js/table-views.js             таблицы карточки / ГК / лимитов
+specs/current.md                  оглавление датированных spec
+docs/database_migration.md        переход с прототипа
+docs/ddl_conversion.md            Impala → PostgreSQL, GAP
 ```
 
 ## API
 
 ```
-GET /api/companies?q=маг&limit=8        поиск по названию или ИНН
-GET /api/companies/{id}                 карточка
-GET /api/companies/{id}/indicators      баланс / финрезультаты / коэффициенты
-GET /api/companies/{id}/limits          лимиты
-GET /api/companies/{id}/sublimits       сублимиты
-GET /api/companies/{id}/reserves        резервы
+GET /api/clients?q=&limit=          поиск по наименованию или ИНН
+GET /api/clients/{inn}              карточка клиента
+GET /api/clients/{inn}/limits       лимиты и потенциальные сделки
+GET /api/groups/{crm_id}            структура ГК
+GET /api/meta                       дата загрузки копии (app.load_log)
 GET /api/health
 ```
 
-## Обновление справочника компаний
+## Данные
 
-Источник истины — Postgres, Redis только кэширует подсказки (TTL 300 с).
-
-```bash
-# положить выгрузку в ./data и запустить
-docker compose exec api python scripts/refresh_companies.py \
-    --file /data/companies.csv --deactivate-missing
-```
-
-Джоб грузит источник во временную таблицу, делает один `UPSERT` по ИНН,
-помечает исчезнувшие записи `is_active = false` и сбрасывает ключи `search:*`
-в Redis. Справочник ни на секунду не остаётся пустым.
-
-Расписание — по вкусу:
-
-```
-# ежедневно в 04:30 на хосте
-30 4 * * * cd /opt/abb && docker compose exec -T api \
-    python scripts/refresh_companies.py --file /data/companies.csv
-```
-
-История запусков пишется в таблицу `company_sync_log`.
+Источник истины по структуре — DDL команды данных (`context/data/ddl`).
+Backend читает только итоговые витрины `t_lm_*`. Передача копии из DataHub
+в PROD не реализована (контракта нет); на TEST данные из `db/local/90–91`.
 
 ## Поиск подсказок
 
-Поиск идёт напрямую в Postgres, без кэша. На 200 000 компаний префиксный
-запрос отрабатывает за 0,08 мс, потому что `ORDER BY search_name USING ~<~`
-совпадает с порядком btree-индекса и скан останавливается на восьмой строке.
-Опечатки ловит запасной запрос через `word_similarity`, он запускается, только
-если префиксный вернул меньше трёх строк.
-
-Колонка `search_name` и индексы под неё создаются **автоматически при старте
-API** (`ensure_schema` в `app/main.py`). Операции идемпотентны, выполняются на
-каждом запуске — код и схема не могут разойтись.
-
-Это важно, потому что файлы из `db/` выполняются только при первичной
-инициализации пустого тома. На базе, которая уже работает, они не применятся,
-и код, ожидающий новую колонку, падал бы с `UndefinedColumn`.
-
-Проверка: в `/api/health` есть поле `search_schema` — должно быть `true`.
-Если `false`, смотрите причину в логах API и при необходимости накатите
-миграцию руками:
-
-```bash
-docker compose exec -T db psql -U abb -d abb < db/03_search_index.sql
-```
+Поиск идёт напрямую в `t_lm_1_2_clients`: префикс ИНН или `ILIKE` по
+наименованию, запасной путь — оператор `<%` (pg_trgm). Дедупликация —
+`DISTINCT ON (uparty_inn_code)` с предпочтением `source = datahub`.
+Индексы на копиях не создаются, пока `EXPLAIN ANALYZE` на PROD-объёме
+не покажет необходимость (см. docs/database_migration.md).
 
 ## Проверка сборки
 
@@ -199,12 +165,11 @@ python3 tools/verify_build.py
 
 Кнопка «Выгрузить в Excel» собирает файл прямо в браузере — бэкенд не участвует,
 внешних библиотек нет (`web/js/xlsx.js` — генератор XLSX на ~180 строк).
-Листы: Компания · Баланс · Финрезультаты · Коэффициенты · Лимиты · Сублимиты ·
-Информация о резервах. Числа выгружаются числами с форматом `#,##0`, шапка
-закреплена, так что в Excel сразу работают фильтры и формулы.
+Листы: Компания · Группа компаний · Лимиты · Заявки. ИНН выгружается текстом.
+Транши и резервы в файл не попадают — источника в текущем DDL нет.
 
-## Смена демо-данных на реальные
+## Смена тестовых данных
 
-1. Заменить `db/02_seed.sql` на загрузку из вашей витрины.
-2. Удалить `web/js/mock.js` и подключение к нему из `index.html`,
-   а также `withFallback` из `web/js/api.js`.
+1. Обновить `db/local/90_test_refs.sql` скриптом `tools/convert_ref_inserts.py`.
+2. Дописать сценарии в `db/local/91_test_marts.sql` строго по колонкам DDL.
+3. Пересоздать том: `docker compose down -v && docker compose up --build`.

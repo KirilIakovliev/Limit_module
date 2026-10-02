@@ -44,7 +44,16 @@ const SearchBar = (() => {
   async function loadSuggestions(text) {
     const requestId = ++requestCounter;
     let result = [];
-    try { result = await API.searchCompanies(text); } catch { result = []; }
+    try { result = await API.searchCompanies(text); }
+    catch (error) {
+      if (requestId !== requestCounter) return;
+      if (error.status === 503) {
+        dropdown.innerHTML = '<div class="suggestions-empty">Витрины на отображение ещё не загружены</div>';
+        openDropdown();
+        return;
+      }
+      result = [];
+    }
     if (requestId !== requestCounter) return;   // ответ устарел — пользователь допечатал
     suggestions = result;
     highlightedIndex = -1;
@@ -62,7 +71,7 @@ const SearchBar = (() => {
         <span class="suggestion-dot"></span>
         <span>
           <span class="suggestion-name">${highlightMatch(company.name, text)}</span>
-          <span class="suggestion-meta">ИНН ${highlightMatch(company.inn, text)} · КПП ${Format.escape(company.kpp || '—')} · ${Format.escape(company.industry || '')}</span>
+          <span class="suggestion-meta">ИНН ${highlightMatch(company.inn, text)} · КПП ${Format.escape(company.kpp || '—')}</span>
         </span>
       </div>`).join('');
 

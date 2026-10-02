@@ -27,12 +27,13 @@ const TabTree = (() => {
     company: null,
     data: null,
     events: [],
-    view: null,          // 'company' | 'events' — что выбрано на первом уровне
-    section: null,       // 'main' | 'statements' | 'limits' | 'sublimits' | 'reserves'
-    group: 'balance',    // 'balance' | 'results' | 'ratios'
+    view: null,          // 'company'
+    section: null,       // 'main' | 'limits' | 'sublimits' | 'reserves'
+    group: 'balance',
     attribute: null,     // выбранный атрибут в «Основной информации» ('group' раскрывает ГК)
-    groupSelection: null, // компания, выбранная в структуре ГК для перехода
-    eventFilter: 'critical',  // какая категория событий показана
+    groupSelection: null, // ИНН компании, выбранной в структуре ГК
+    eventFilter: 'critical',
+    groupCard: null,     // лениво загруженная карточка ГК
   };
 
   const tabNodes = {
@@ -92,14 +93,14 @@ const TabTree = (() => {
   /* ---------- построение уровней ---------- */
   function buildTabs() {
     const company = state.company;
-    const { indicators, limits, sublimits, reserves, profile } = state.data;
+    const { limits, profile } = state.data;
 
     // --- уровень 1
     tabNodes.company = createTab({
       label: 'Компания', value: company.name, note: 'Открыть карточку',
       index: 0, onClick: () => selectView('company'),
     });
-    tabNodes.company.classList.add('tab--company');   // ширина по длине названия
+    tabNodes.company.classList.add('tab--company');
 
     const criticalCount = Events.countBy(state.events, 'critical');
     tabNodes.events = createTab({
@@ -110,7 +111,6 @@ const TabTree = (() => {
     tabNodes.events.classList.add('tab--events');
     if (criticalCount) tabNodes.events.classList.add('has-alert');
 
-    // фильтры событий — второй уровень, когда открыта вкладка «События»
     tabNodes.eventFilters = {};
     EVENT_FILTERS.forEach((filter, index) => {
       const count = Events.countBy(state.events, filter.code);
@@ -122,9 +122,8 @@ const TabTree = (() => {
 
     setRowTabs(companyTabs, [tabNodes.company, createIdentityPair(company), tabNodes.events]);
 
-    // --- уровень 2
-    const utilization = limits.total
-      ? (limits.used / limits.total * 100).toFixed(1).replace('.', ',') : '0';
+    const limitCount = (limits && limits.limits) ? limits.limits.length : 0;
+    const appCount = (limits && limits.applications) ? limits.applications.length : 0;
 
     tabNodes.sections = {
       main: createTab({
@@ -132,49 +131,28 @@ const TabTree = (() => {
         note: profile.group ? profile.group.name : 'без группы компаний',
         index: 0, onClick: () => selectSection('main'),
       }),
-      statements: createTab({
-        label: 'Финансовая отчётность', value: `${indicators.years[0]}–${indicators.years[indicators.years.length - 1]}`,
-        note: 'Баланс · Фин. рез-ты · Коэф-ты',
-        index: 1, onClick: () => selectSection('statements'),
-      }),
       limits: createTab({
-        label: 'Лимиты', value: Format.compact(limits.total),
-        note: `утилизация ${utilization}%`, index: 2, onClick: () => selectSection('limits'),
+        label: 'Лимиты', value: String(limitCount),
+        note: `${appCount} заявок`, index: 1, onClick: () => selectSection('limits'),
       }),
       sublimits: createTab({
-        label: 'Сублимиты', value: Format.compact(sublimits.total),
-        note: `${sublimits.items.length} позиций`, index: 3, onClick: () => selectSection('sublimits'),
+        label: 'Сублимиты', value: '—',
+        note: 'источник не подключён', index: 2, onClick: () => selectSection('sublimits'),
       }),
       reserves: createTab({
-        label: 'Информация о резервах', value: Format.compact(reserves.total),
-        note: 'РСБУ · МСФО', index: 4, onClick: () => selectSection('reserves'),
+        label: 'Информация о резервах', value: '—',
+        note: 'источник не подключён', index: 3, onClick: () => selectSection('reserves'),
       }),
     };
     sectionTabs.replaceChildren(...Object.values(tabNodes.sections));
 
-    // --- уровень 3: разделы отчётности
     tabNodes.groups = {};
-    INDICATOR_GROUPS.forEach((group, index) => {
-      const source = indicators.groups.find(item => item.code === group.code);
-      tabNodes.groups[group.code] = createTab({
-        value: group.title,
-        note: source ? `${source.rows.length} показателей` : '',
-        index,
-        onClick: () => {
-          state.group = group.code;
-          syncTabs();
-          renderContent();
-        },
-      });
-    });
 
-    // --- уровень 3: атрибутный состав карточки клиента
-    // ИНН, ОГРН, адрес и ОКВЭД — справочные, кликается только группа компаний
     const attributeTabs = [
       { code: 'inn',     label: 'ИНН',   value: profile.inn },
       { code: 'ogrn',    label: 'ОГРН',  value: profile.ogrn || '—' },
       { code: 'address', label: 'Адрес', value: profile.address || '—' },
-      { code: 'okved',   label: 'ОКВЭД', value: profile.okved || '—', note: profile.okved_name || '' },
+      { code: 'okved',   label: 'ОКВЭД', value: profile.okved || '—' },
     ];
     tabNodes.attributes = {};
     attributeTabs.forEach((attribute, index) => {
@@ -184,17 +162,11 @@ const TabTree = (() => {
       });
     });
 
-    // группа компаний: раскрывается, если есть; иначе «Отсутствует» на том же месте
     tabNodes.attributes.group = profile.group
       ? createTab({
           label: 'Группа компаний', value: profile.group.name,
-
           index: attributeTabs.length,
-          onClick: () => {
-            state.attribute = state.attribute === 'group' ? null : 'group';
-            syncTabs();
-            renderContent();
-          },
+          onClick: () => toggleGroup(),
         })
       : createTab({
           label: 'Группа компаний', value: 'Отсутствует',
@@ -207,15 +179,13 @@ const TabTree = (() => {
   function syncTabs() {
     const companyOpen = state.view === 'company';
     const eventsOpen = state.view === 'events';
-    const showStatements = companyOpen && state.section === 'statements';
     const showAttributes = companyOpen && state.section === 'main';
-    const showGroups = showStatements || showAttributes;
+    const showGroups = showAttributes;
 
     tabNodes.company.classList.toggle('is-active', companyOpen);
     tabNodes.company.noteElement.textContent = companyOpen ? 'Свернуть карточку' : 'Открыть карточку';
     tabNodes.events.classList.toggle('is-active', eventsOpen);
 
-    // второй уровень показывает либо разделы компании, либо фильтры событий
     if (eventsOpen) {
       setRowTabs(sectionTabs, Object.values(tabNodes.eventFilters));
       Object.entries(tabNodes.eventFilters).forEach(([code, node]) =>
@@ -448,50 +418,66 @@ const TabTree = (() => {
       html = TableViews.events(state.events, state.eventFilter);
     } else if (state.view === 'company') {
       if (state.section === 'main') {
-        html = state.attribute === 'group' && data.profile.group
-          ? TableViews.group(data.profile.group, {
-              selectedId: state.groupSelection,
-              currentId: state.company.id,
+        html = state.attribute === 'group' && state.groupCard
+          ? TableViews.group(state.groupCard, {
+              selectedInn: state.groupSelection,
+              currentInn: state.company.inn,
             })
           : TableViews.profile(data.profile);
       }
-      else if (state.section === 'statements') html = TableViews.indicators(data.indicators, state.group);
       else if (state.section === 'limits')    html = TableViews.limits(data.limits);
-      else if (state.section === 'sublimits') html = TableViews.sublimits(data.sublimits);
-      else if (state.section === 'reserves')  html = TableViews.reserves(data.reserves);
+      else if (state.section === 'sublimits') html = TableViews.sublimits();
+      else if (state.section === 'reserves')  html = TableViews.reserves();
     }
 
     contentArea.innerHTML = html;
 
-    // выбор компании в структуре ГК: клик отмечает её, кнопка «Перейти» —
-    // запускает полноценный запрос за данными выбранной компании
-    contentArea.querySelectorAll('[data-company-id]').forEach(node =>
+    contentArea.querySelectorAll('[data-inn]').forEach(node =>
       node.addEventListener('click', () => {
-        const id = +node.dataset.companyId;
-        state.groupSelection = state.groupSelection === id ? null : id;
+        const inn = node.dataset.inn;
+        state.groupSelection = state.groupSelection === inn ? null : inn;
         renderContent();
       }));
 
-    const goButton = contentArea.querySelector('[data-go]');
+    const goButton = contentArea.querySelector('[data-go-inn]');
     if (goButton) {
-      goButton.addEventListener('click', () => callbacks.openCompany(+goButton.dataset.go));
+      goButton.addEventListener('click', () => callbacks.openCompany(goButton.dataset.goInn));
     }
 
-    contentArea.style.animation = 'none';   // перезапуск анимации появления
+    contentArea.style.animation = 'none';
     void contentArea.offsetWidth;
     contentArea.style.animation = '';
   }
 
-  /* ---------- взаимодействие ---------- */
-  /* Один клик раскрывает ровно один уровень: карточка компании
-     показывает строку разделов и ничего не выбирает в ней, раздел
-     показывает свою строку — и так далее вглубь. */
+  async function toggleGroup() {
+    if (state.attribute === 'group') {
+      state.attribute = null;
+      syncTabs();
+      renderContent();
+      return;
+    }
+    state.attribute = 'group';
+    syncTabs();
+    const ref = state.data.profile && state.data.profile.group;
+    if (ref && !state.groupCard) {
+      contentArea.innerHTML = '<p class="events-empty">Загружаем структуру группы…</p>';
+      try {
+        state.groupCard = await API.group(ref.crm_id);
+      } catch (error) {
+        contentArea.innerHTML = '<p class="events-empty">Не удалось загрузить группу компаний.</p>';
+        console.error(error);
+        return;
+      }
+    }
+    renderContent();
+  }
+
   function selectView(view) {
     state.view = state.view === view ? null : view;
     state.section = null;
     state.attribute = null;
     state.groupSelection = null;
-    if (state.view === 'events') state.eventFilter = 'critical';   // по умолчанию — критичные
+    if (state.view === 'events') state.eventFilter = 'critical';
     syncTabs();
     renderContent();
   }
@@ -510,13 +496,12 @@ const TabTree = (() => {
     renderContent();
   }
 
-  /* ---------- публичный интерфейс ---------- */
   function render(company, data) {
     Object.assign(state, {
       company, data,
       events: Events.detect(data),
       view: null, section: null, group: 'balance', eventFilter: 'critical',
-      attribute: null, groupSelection: null,
+      attribute: null, groupSelection: null, groupCard: null,
     });
     treeRoot.hidden = false;
     buildTabs();
@@ -535,12 +520,14 @@ const TabTree = (() => {
     contentArea.innerHTML = '';
     Object.assign(state, {
       company: null, data: null, events: [], view: null, section: null,
-      group: 'balance', eventFilter: 'critical', attribute: null, groupSelection: null,
+      group: 'balance', eventFilter: 'critical', attribute: null,
+      groupSelection: null, groupCard: null,
     });
   }
 
   return {
     render, clear,
     onOpenCompany: fn => { callbacks.openCompany = fn; },
+    getGroupCard: () => state.groupCard,
   };
 })();
