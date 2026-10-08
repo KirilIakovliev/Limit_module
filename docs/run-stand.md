@@ -19,19 +19,29 @@ DSN собирается из `POSTGRES_*` (`api/app/db.py`). Прод: смен
 
 ## B. Образ, проверка без Kubernetes, Helm
 
-Из корня `Limit_module/`. Пароль один и тот же для контейнера и для Helm:
+Сборку запускать из корня `Limit_module/`: последняя `.` — контекст с папками `api/` и `web/`. Пароль БД при сборке не нужен; он передаётся при запуске контейнера и через Helm.
 
 ```bash
-export POSTGRES_PASSWORD='…'
+read -rsp 'Пароль БД: ' POSTGRES_PASSWORD
+echo
+export POSTGRES_PASSWORD
 
 sudo nerdctl --namespace k8s.io build \
   --build-arg BASE_IMAGE=artifactory.akbars.tech/docker/library/python:3.12-slim \
   --build-arg PIP_INDEX_URL=https://artifactory.akbars.tech/artifactory/api/pypi/pypi/simple \
   --build-arg PIP_TRUSTED_HOST=artifactory.akbars.tech \
   -f Dockerfile.prod \
-  -t t-lmts1-app51/limitmodule:0.2.0 \
+  -t t-lmts1-app51/limitmodule:0.2.1 \
   .
-sudo nerdctl --namespace k8s.io image inspect t-lmts1-app51/limitmodule:0.2.0 >/dev/null
+sudo nerdctl --namespace k8s.io image inspect t-lmts1-app51/limitmodule:0.2.1 >/dev/null
+```
+
+Dockerfile нормализует права статики (`chmod -R a+rX /srv/web`), чтобы каталоги с правами `700` не приводили к ответу `401 Unauthorized` при раздаче файлов. Проверка чтения без root:
+
+```bash
+sudo nerdctl --namespace k8s.io run --rm --user 10001 \
+  t-lmts1-app51/limitmodule:0.2.1 \
+  python -c "from pathlib import Path; print(Path('/srv/web/css/styles.css').read_text()[:100])"
 ```
 
 Сначала тот же образ без кластера (`--add-host` — в контейнере DNS до pdb51 часто не резолвится). Остановить: Ctrl+C.
@@ -44,7 +54,7 @@ sudo nerdctl --namespace k8s.io run --rm -p 8000:8000 \
   -e POSTGRES_DB=limitmodule \
   -e POSTGRES_USER=limitmodule_test \
   -e POSTGRES_PASSWORD \
-  t-lmts1-app51/limitmodule:0.2.0
+  t-lmts1-app51/limitmodule:0.2.1
 ```
 
 В другом терминале:
@@ -60,8 +70,10 @@ curl -s http://127.0.0.1:8000/api/health
 helm upgrade --install limitmodule deployment/helm-chart/limitmodule \
   -n limitmodule --create-namespace \
   -f deployment/helm-chart/limitmodule/values-stand.yaml \
-  --set postgresql.password="$POSTGRES_PASSWORD" \
-  --set image.tag=0.2.0
+  --set-string postgresql.password="$POSTGRES_PASSWORD" \
+  --set image.tag=0.2.1
+
+kubectl rollout status deploy/limitmodule -n limitmodule --timeout=180s
 ```
 
 Проверка внутри кластера и через Traefik:
@@ -88,6 +100,9 @@ sudo systemctl enable --now nginx
 sudo systemctl reload nginx
 
 curl -s http://t-lmts1-app51.base.akbars.ru/api/health
+curl -I http://t-lmts1-app51.base.akbars.ru/css/styles.css
+curl -I http://t-lmts1-app51.base.akbars.ru/js/app.js
+# CSS/JS: 200 OK; health: db=true, web_mounted=true. В браузере: Ctrl+F5.
 ```
 
 Чарт локально (без кластера): `helm lint deployment/helm-chart/limitmodule` и `helm template lm deployment/helm-chart/limitmodule -f deployment/helm-chart/limitmodule/values-stand.yaml --set postgresql.password=dummy`.

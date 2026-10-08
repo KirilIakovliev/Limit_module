@@ -22,6 +22,7 @@ COPY api/app ./app
 COPY api/alembic ./alembic
 COPY api/alembic.ini ./alembic.ini
 COPY web ./web
+RUN chmod -R a+rX /srv/web
 
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin abb \
     && chown -R 10001:10001 /srv

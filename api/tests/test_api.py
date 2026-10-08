@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture(scope="module")
-def client():
+def client(app_pool):
     from app.main import app
     with TestClient(app) as c:
         yield c

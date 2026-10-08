@@ -1,0 +1,24 @@
+# Только настройки Ruff. Зависимости ставятся из api/requirements.txt
+# и api/requirements-dev.txt, не из этого файла.
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["api"]
+extend-exclude = ["api/alembic/script.py.mako"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = [
+  "E501",   # не переносить SQL и длинные строки ради линтера
+  "UP045",  # Optional[X] в моделях ответов; массовая замена на X | None не в этой фазе
+  "UP017",  # datetime.UTC есть с 3.11; локальный pytest сейчас на 3.10
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+# Каталог api/alembic — скрипты миграций, не пакет. Импорт alembic — библиотека.
+known-third-party = ["alembic"]
+
+[tool.ruff.lint.per-file-ignores]
+"api/alembic/versions/*.py" = ["UP007", "UP035"]
