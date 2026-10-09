@@ -1,0 +1,8 @@
+/* Заглушки каркаса, не палитра макета. Экраны берут цвет и шрифт только отсюда. */
+:root {
+  --font-sans: system-ui, "Segoe UI", sans-serif;
+  --color-bg: #fff;
+  --color-text: #1a1a1a;
+  --color-text-muted: #5c6b7a;
+  --space-page: 24px;
+}

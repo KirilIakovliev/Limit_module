@@ -1,0 +1,8 @@
+.shell {
+  padding: var(--space-page);
+}
+
+.note {
+  margin: 8px 0 0;
+  color: var(--color-text-muted);
+}
