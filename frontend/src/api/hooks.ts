@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { client, group, health, limits, meta, searchClients } from './endpoints';
+import { client, exportStatus, group, health, limits, meta, searchClients } from './endpoints';
 import { queryKeys } from './keys';
 
 export function useHealth() {
@@ -34,6 +34,20 @@ export function useLimits(inn: string) {
     queryKey: queryKeys.limits(value),
     queryFn: ({ signal }) => limits(value, signal),
     enabled: value.length > 0,
+  });
+}
+
+export function useExportStatus(id: string) {
+  return useQuery({
+    queryKey: queryKeys.exportJob(id),
+    queryFn: ({ signal }) => exportStatus(id, signal),
+    enabled: id.length > 0,
+    refetchInterval: (query) => {
+      if (query.state.status === 'error') return false;
+      const status = query.state.data?.status;
+      if (status === 'ready' || status === 'failed') return false;
+      return 400;
+    },
   });
 }
 

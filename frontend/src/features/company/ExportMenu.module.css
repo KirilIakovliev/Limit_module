@@ -1,0 +1,157 @@
+.trigger,
+.ghost,
+.apply,
+.textButton {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(var(--blur));
+}
+
+.trigger:hover,
+.trigger:focus-visible,
+.ghost:hover,
+.ghost:focus-visible,
+.apply:hover,
+.apply:focus-visible,
+.textButton:hover,
+.textButton:focus-visible {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--color-accent);
+  outline: none;
+}
+
+.apply {
+  color: white;
+  background: var(--color-accent);
+  border-color: transparent;
+}
+
+.apply:hover,
+.apply:focus-visible {
+  background: #187541;
+  color: white;
+}
+
+.apply:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.chev {
+  display: inline-block;
+  transition: transform 180ms ease;
+}
+
+.open .chev {
+  transform: rotate(180deg) translateY(1px);
+}
+
+.dropdown {
+  width: 280px;
+  padding: 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(var(--blur));
+}
+
+.caption {
+  margin: 0 0 8px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.checkBody {
+  margin-top: 8px;
+  align-items: center;
+}
+
+.check {
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.ghost,
+.apply,
+.textButton {
+  padding: 6px 10px;
+}
+
+.progress {
+  min-width: 220px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(var(--blur));
+}
+
+.progress p {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stage {
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.track {
+  height: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(31, 138, 76, 0.15);
+}
+
+.track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-accent);
+  transition: width 240ms ease;
+}
+
+.textButton {
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger,
+  .chev,
+  .ghost,
+  .apply,
+  .textButton,
+  .track span {
+    transition: none;
+  }
+}

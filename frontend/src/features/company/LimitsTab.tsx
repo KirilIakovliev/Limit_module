@@ -10,14 +10,23 @@ const NO_DATA = 'нет данных';
 export function LimitsTab({
   query,
   group,
+  day,
+  showClosed,
+  onDay,
+  onShowClosed,
 }: {
   query: ReturnType<typeof useLimits>;
   group: ReturnType<typeof useGroup>;
+  day?: string;
+  showClosed?: boolean;
+  onDay?: (value: string) => void;
+  onShowClosed?: (value: boolean) => void;
 }) {
   const today = todayIso();
-  const [day, setDay] = useState(today);
-  const [showClosed, setShowClosed] = useState(true);
-  const selected = day;
+  const [ownDay, setOwnDay] = useState(today);
+  const [ownClosed, setOwnClosed] = useState(true);
+  const selected = day ?? ownDay;
+  const closed = showClosed ?? ownClosed;
 
   if (query.isError) {
     return (
@@ -29,8 +38,8 @@ export function LimitsTab({
   }
   if (!query.data) return <Skeleton className={classes.bone} height={160} radius="md" />;
 
-  const rows = visibleLimits(query.data.limits, selected, showClosed, today);
-  const onDay = visibleLimits(query.data.limits, selected, true, today).length;
+  const rows = visibleLimits(query.data.limits, selected, closed, today);
+  const present = visibleLimits(query.data.limits, selected, true, today).length;
   const blocks = groupByOwner(rows);
 
   return (
@@ -42,7 +51,11 @@ export function LimitsTab({
             <input
               type="date"
               value={selected}
-              onChange={(event) => setDay(event.currentTarget.value)}
+              onChange={(event) => {
+                const value = event.currentTarget.value;
+                if (onDay) onDay(value);
+                else setOwnDay(value);
+              }}
             />
           </label>
           <Switch
@@ -50,8 +63,12 @@ export function LimitsTab({
             size="xs"
             color="green"
             label="Показывать закрытые лимиты"
-            checked={showClosed}
-            onChange={(event) => setShowClosed(event.currentTarget.checked)}
+            checked={closed}
+            onChange={(event) => {
+              const value = event.currentTarget.checked;
+              if (onShowClosed) onShowClosed(value);
+              else setOwnClosed(value);
+            }}
           />
         </div>
       </section>
@@ -66,7 +83,7 @@ export function LimitsTab({
             <LimitTable rows={block.items} />
           </div>
         )) : (
-          <p className={classes.muted}>{emptyLimits(selected, query.data.limits.length, onDay)}</p>
+          <p className={classes.muted}>{emptyLimits(selected, query.data.limits.length, present)}</p>
         )}
       </section>
       <section className={`${classes.panel} ${classes.rise}`} aria-label="Единый сублимит">

@@ -4,7 +4,10 @@ import { Link, useParams } from 'react-router';
 import { ApiError } from '../../api/http';
 import { useClient, useGroup, useLimits, useMeta } from '../../api/hooks';
 import { compactMoney, formatStamp } from './format';
+import { ApplicationsTab } from './ApplicationsTab';
+import { ExportMenu } from './ExportMenu';
 import { LimitsTab } from './LimitsTab';
+import { todayIso } from './limitsView';
 import classes from './CompanyPage.module.css';
 
 const TABS = ['Общая информация', 'Лимиты', 'Лимиты на рассмотрении', 'Резервы'] as const;
@@ -16,9 +19,12 @@ type Summary = NonNullable<NonNullable<ReturnType<typeof useGroup>['data']>['sum
 export function CompanyPage() {
   const { inn = '' } = useParams();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Общая информация');
+  const today = todayIso();
+  const [day, setDay] = useState(today);
+  const [showClosed, setShowClosed] = useState(true);
   const card = useClient(inn);
   const meta = useMeta();
-  const limits = useLimits(tab === 'Лимиты' ? inn : '');
+  const limits = useLimits(tab === 'Лимиты' || tab === 'Лимиты на рассмотрении' ? inn : '');
   const crmId = card.data?.group?.crm_id ?? '';
   const group = useGroup(crmId, crmId.length > 0);
   const company = card.data;
@@ -42,7 +48,7 @@ export function CompanyPage() {
           <div className={classes.toolbar}>
             <div className={classes.tabs} role="tablist" aria-label="Разделы профиля">
               {TABS.map((item) => {
-                const open = item === 'Общая информация' || item === 'Лимиты';
+                const open = item !== 'Резервы';
                 return (
                   <button
                     key={item}
@@ -58,15 +64,20 @@ export function CompanyPage() {
                 );
               })}
             </div>
-            <p className={classes.fresh}>Дата актуализации данных: {formatStamp(meta.data?.updated_at)}</p>
+            <div className={classes.side}>
+              <ExportMenu inn={company.inn} tab={tab} asOf={day} showClosed={showClosed} />
+              <p className={classes.fresh}>Дата актуализации данных: {formatStamp(meta.data?.updated_at)}</p>
+            </div>
           </div>
           {tab === 'Общая информация' ? (
             <>
               <InfoTable company={company} />
               {crmId ? <GroupBlock query={group} currentInn={company.inn} /> : null}
             </>
+          ) : tab === 'Лимиты' ? (
+            <LimitsTab query={limits} group={group} day={day} showClosed={showClosed} onDay={setDay} onShowClosed={setShowClosed} />
           ) : (
-            <LimitsTab query={limits} group={group} />
+            <ApplicationsTab query={limits} />
           )}
         </>
       ) : null}

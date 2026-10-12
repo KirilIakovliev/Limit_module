@@ -125,6 +125,7 @@ describe('LimitsTab', () => {
     expect(aggregate.queryByText('210,5 млн RUB')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Единый лимит' })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Лимиты' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: 'Лимиты на рассмотрении' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('tab', { name: 'Лимиты на рассмотрении' })).not.toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('tab', { name: 'Резервы' })).toHaveAttribute('aria-disabled', 'true');
   });
 });

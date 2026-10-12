@@ -1,5 +1,7 @@
 .scene {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   position: relative;
 }
 
@@ -54,14 +56,17 @@
 }
 
 .header {
-  position: relative;
-  z-index: 1;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex: none;
   height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--space-page);
-  background: transparent;
+  background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+  backdrop-filter: blur(var(--blur));
 }
 
 .profile {
@@ -134,6 +139,7 @@
 .main {
   position: relative;
   z-index: 1;
+  flex: 1 0 auto;
   width: min(var(--page-width), calc(100% - var(--space-page) * 2));
   max-width: 100%;
   min-width: 0;
@@ -150,6 +156,16 @@
   min-width: 0;
   max-width: 100%;
   animation: page-in 220ms ease;
+}
+
+.footer {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  margin: 0 0 18px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  text-align: center;
 }
 
 @keyframes drift {

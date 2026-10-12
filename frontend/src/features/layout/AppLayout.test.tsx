@@ -15,5 +15,6 @@ describe('AppLayout', () => {
     expect(logout).not.toBeNull();
     fireEvent.click(logout!);
     expect(screen.getByRole('heading', { name: 'Поиск компании' })).toBeInTheDocument();
+    expect(screen.getByText('ПАО «АК БАРС» БАНК')).toBeInTheDocument();
   });
 });

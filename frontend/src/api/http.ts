@@ -27,10 +27,23 @@ async function readDetail(response: Response): Promise<string | null> {
   }
 }
 
+export async function postJson<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return readJson<T>(path, {
+    method: 'POST',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  });
+}
+
 export async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
+  return readJson<T>(path, { headers: { Accept: 'application/json' }, signal });
+}
+
+async function readJson<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${BASE}${path}`, { headers: { Accept: 'application/json' }, signal });
+    response = await fetch(`${BASE}${path}`, init);
   } catch (error) {
     if (isAbort(error)) throw error;
     throw new ApiError(0, error instanceof Error ? error.message : 'network');

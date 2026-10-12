@@ -10,7 +10,7 @@ export function AppHeader() {
       <h1 className={classes.brand}>
         <Link to="/">Лимитный модуль</Link>
       </h1>
-      <Menu position="bottom-end" offset={8} transitionProps={{ transition: 'pop', duration: 180 }}>
+      <Menu position="bottom-end" offset={8} zIndex={400} transitionProps={{ transition: 'pop', duration: 180 }}>
         <Menu.Target>
           <button type="button" className={classes.profile} aria-label="Профиль пользователя">
             <Avatar size={28} radius="xl" color="green">{user.initials}</Avatar>
@@ -67,6 +67,7 @@ export function AppLayout() {
           <Outlet />
         </div>
       </main>
+      <footer className={classes.footer}>ПАО «АК БАРС» БАНК</footer>
     </div>
   );
 }
