@@ -135,9 +135,21 @@
   position: relative;
   z-index: 1;
   width: min(var(--page-width), calc(100% - var(--space-page) * 2));
+  max-width: 100%;
+  min-width: 0;
   margin: 0 auto 32px;
   display: grid;
   gap: 16px;
+}
+
+.main:has([data-page='company']) {
+  width: min(1120px, calc(100% - var(--space-page) * 2));
+}
+
+.pageIn {
+  min-width: 0;
+  max-width: 100%;
+  animation: page-in 220ms ease;
 }
 
 @keyframes drift {
@@ -145,8 +157,14 @@
   to { transform: translate3d(12px, 8px, 0); }
 }
 
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .blobs span,
   .chevron,
-  .profile { animation: none; transition: none; }
+  .profile,
+  .pageIn { animation: none; transition: none; }
 }

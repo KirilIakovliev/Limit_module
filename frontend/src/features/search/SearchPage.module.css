@@ -12,6 +12,11 @@
   padding: 16px 18px;
 }
 
+.stack {
+  display: grid;
+  gap: 28px;
+}
+
 .reveal {
   animation: rise 220ms ease;
 }

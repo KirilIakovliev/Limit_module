@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from psycopg.errors import UndefinedTable
 
@@ -127,6 +127,27 @@ def health_check():
         "web_dir": str(FRONTEND_DIR),
         "web_mounted": FRONTEND_AVAILABLE,
     }
+
+
+def resolve_next(root: Path, rest: str) -> Path:
+    """Файл сборки /next либо index.html для адреса React Router. Чужой путь — 404."""
+    base = root.resolve()
+    target = (base / rest).resolve()
+    if target != base and base not in target.parents:
+        raise HTTPException(status_code=404, detail="Not Found")
+    if target.is_file():
+        return target
+    if Path(rest).suffix:
+        raise HTTPException(status_code=404, detail="Not Found")
+    index = base / "index.html"
+    if not index.is_file():
+        raise HTTPException(status_code=404, detail="Not Found")
+    return index
+
+
+@app.get("/next/{rest:path}", include_in_schema=False)
+def next_app(rest: str):
+    return FileResponse(resolve_next(FRONTEND_DIR / "next", rest))
 
 
 if FRONTEND_AVAILABLE:

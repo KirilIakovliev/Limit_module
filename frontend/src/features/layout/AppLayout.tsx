@@ -1,5 +1,5 @@
 import { Avatar, Menu } from '@mantine/core';
-import { Link, Outlet } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
 import classes from './AppLayout.module.css';
 
 const user = { name: 'Мария Иванова', role: 'Кредитный аналитик', initials: 'МИ' };
@@ -52,6 +52,7 @@ function LogoutIcon() {
 }
 
 export function AppLayout() {
+  const { pathname } = useLocation();
   return (
     <div className={classes.scene}>
       <div className={classes.blobs} aria-hidden="true">
@@ -62,7 +63,9 @@ export function AppLayout() {
       </div>
       <AppHeader />
       <main className={classes.main}>
-        <Outlet />
+        <div key={pathname} className={classes.pageIn}>
+          <Outlet />
+        </div>
       </main>
     </div>
   );

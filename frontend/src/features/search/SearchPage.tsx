@@ -31,7 +31,7 @@ export function SearchPage() {
   }
 
   return (
-    <>
+    <div className={classes.stack}>
       <section className={classes.panel}>
         <div className={classes.heading}>
           <span className={classes.mark} aria-hidden="true">
@@ -67,7 +67,7 @@ export function SearchPage() {
         onClear={clear}
         onRetry={() => void search.refetch()}
       />
-    </>
+    </div>
   );
 }
 
@@ -200,8 +200,12 @@ function SearchIcon() {
 
 function BuildingIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-      <path d="M4 20h16M7 20V5h10v15M10 9h.01M14 9h.01M10 13h.01M14 13h.01M10 17h4" />
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        d="M12 2.5 4.5 7.2V21h15V7.2L12 2.5ZM8.8 10.2h2.2v2.2H8.8v-2.2Zm4.2 0h2.2v2.2h-2.2v-2.2ZM8.8 14h2.2v2.2H8.8V14Zm4.2 0h2.2v2.2h-2.2V14ZM10.8 17.4h2.4V21h-2.4v-3.6Z"
+      />
     </svg>
   );
 }

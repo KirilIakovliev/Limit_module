@@ -104,8 +104,7 @@ describe('SearchPage', () => {
     const profile = screen.getAllByRole('link', { name: 'Открыть профиль' })
       .find((link) => link.getAttribute('href')?.includes('7702070139'));
     fireEvent.click(profile!);
-    expect(await screen.findByRole('heading', { name: 'Профиль компании' })).toBeInTheDocument();
-    expect(screen.getByText('ИНН 7702070139')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'К поиску' })).toBeInTheDocument();
   });
 
   it('показывает «не найдено» без ошибки и очищает поиск', async () => {
