@@ -1,6 +1,10 @@
 body {
   margin: 0;
-  background: var(--color-bg);
+  min-height: 100vh;
   color: var(--color-text);
   font-family: var(--font-sans);
+  background:
+    radial-gradient(900px 520px at 8% -10%, rgba(186, 230, 214, 0.55), transparent 60%),
+    radial-gradient(760px 480px at 100% 0%, rgba(196, 220, 255, 0.5), transparent 55%),
+    linear-gradient(180deg, #f5f9fc 0%, #eef5f4 100%);
 }

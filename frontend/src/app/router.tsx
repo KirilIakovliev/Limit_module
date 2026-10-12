@@ -1,8 +1,19 @@
+import { AppLayout } from '../features/layout/AppLayout';
+import { CompanyPage } from '../features/company/CompanyPage';
+import { SearchPage } from '../features/search/SearchPage';
 import { createBrowserRouter, type RouteObject } from 'react-router';
-import { Shell } from '../features/shell/Shell';
 
 /** Следующие экраны добавляются в этот список. */
-export const routes: RouteObject[] = [{ path: '/', element: <Shell /> }];
+export const routes: RouteObject[] = [
+  {
+    path: '/',
+    element: <AppLayout />,
+    children: [
+      { index: true, element: <SearchPage /> },
+      { path: 'company/:inn', element: <CompanyPage /> },
+    ],
+  },
+];
 
 /** Vite base `/next/` пишет BASE_URL со слэшем; Router ждёт basename без него. */
 export function routerBasename(baseUrl: string): string | undefined {
