@@ -150,7 +150,7 @@ function Results({ rows }: { rows: { inn: string; name?: string | null; kpp?: st
               <strong>{row.kpp || '—'}</strong>
             </div>
             <Button className={classes.press} component={Link} to={`/company/${encodeURIComponent(row.inn)}`} size="sm" leftSection={<ArrowIcon />}>
-              Открыть профиль
+              Открыть карточку
             </Button>
           </div>
         ))}

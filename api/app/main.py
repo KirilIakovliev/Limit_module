@@ -1,14 +1,11 @@
 """Лимитный модуль АББ — backend API. Читает витрины на отображение."""
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
-
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from psycopg.errors import UndefinedTable
 from starlette.background import BackgroundTask
 
@@ -18,9 +15,6 @@ from .export_book import Filters
 from .export_jobs import ExportBusy, ExportCreated, ExportRequest, ExportStatus, runner
 
 response_cache = Cache(os.getenv("REDIS_URL"))
-
-FRONTEND_DIR = Path(os.getenv("WEB_DIR", "/srv/web"))
-FRONTEND_AVAILABLE = (FRONTEND_DIR / "index.html").is_file()
 
 MARTS_UNAVAILABLE = "Витрины на отображение ещё не загружены"
 
@@ -44,10 +38,6 @@ async def lifespan(app: FastAPI):
         )
     except Exception as exc:  # noqa: BLE001
         print(f"[АББ] витрины: каталог недоступен ({exc})", flush=True)
-    print(
-        f"[АББ] фронтенд: {FRONTEND_DIR} -> {'раздаётся' if FRONTEND_AVAILABLE else 'НЕ НАЙДЕН, открыть / для подсказки'}",
-        flush=True,
-    )
     yield
     db.close_pool()
 
@@ -166,43 +156,4 @@ def health_check():
         "marts": db_ok and not missing,
         "missing_marts": missing,
         "cache": response_cache.enabled,
-        "web_dir": str(FRONTEND_DIR),
-        "web_mounted": FRONTEND_AVAILABLE,
     }
-
-
-def resolve_next(root: Path, rest: str) -> Path:
-    """Файл сборки /next либо index.html для адреса React Router. Чужой путь — 404."""
-    base = root.resolve()
-    target = (base / rest).resolve()
-    if target != base and base not in target.parents:
-        raise HTTPException(status_code=404, detail="Not Found")
-    if target.is_file():
-        return target
-    if Path(rest).suffix:
-        raise HTTPException(status_code=404, detail="Not Found")
-    index = base / "index.html"
-    if not index.is_file():
-        raise HTTPException(status_code=404, detail="Not Found")
-    return index
-
-
-@app.get("/next/{rest:path}", include_in_schema=False)
-def next_app(rest: str):
-    return FileResponse(resolve_next(FRONTEND_DIR / "next", rest))
-
-
-if FRONTEND_AVAILABLE:
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="web")
-else:
-    @app.get("/", response_class=HTMLResponse)
-    def frontend_missing_page():
-        return f"""<!doctype html><html lang="ru"><meta charset="utf-8">
-<title>Фронтенд не подключён</title>
-<body style="font:15px/1.6 system-ui;max-width:640px;margin:60px auto;padding:0 20px;color:#22303d">
-<h1 style="font-size:20px">Фронтенд не подключён</h1>
-<p>API работает, но папка <code>{FRONTEND_DIR}</code> внутри контейнера пуста или отсутствует,
-поэтому раздавать нечего.</p>
-<p>Проверка состояния: <a href="/api/health">/api/health</a> ·
-документация API: <a href="/docs">/docs</a></p>
-</body></html>"""

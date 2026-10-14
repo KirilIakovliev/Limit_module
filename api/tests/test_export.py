@@ -139,6 +139,7 @@ def test_section_order_and_single_sheet(tmp_path):
     seen = []
     write_workbook(book, _snap(), ["reserves", "info", "applications", "limits"], lambda pct, stage: seen.append((pct, stage)))
     assert _sheet_names(book) == ["Общая информация", "Лимиты", "Лимиты на рассмотрении", "Резервы"]
+    assert _row(book, "xl/worksheets/sheet3.xml", 7)[:2] == ["Продукт", "Статус"]
     assert [stage for _, stage in seen] == [
         "Формируем лист «Общая информация»",
         "Формируем лист «Лимиты»",

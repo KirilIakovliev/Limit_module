@@ -25,10 +25,10 @@ export function ApplicationsTab({ query }: { query: ReturnType<typeof useLimits>
           <table className={classes.grid}>
             <thead>
               <tr>
+                <th>Продукт</th>
                 <th>Статус</th>
                 <th>Сумма</th>
                 <th>Валюта</th>
-                <th>Продукт</th>
                 <th>Дата начала</th>
                 <th>Дата окончания</th>
                 <th>Владелец</th>
@@ -38,10 +38,10 @@ export function ApplicationsTab({ query }: { query: ReturnType<typeof useLimits>
             <tbody>
               {rows.map((row, index) => (
                 <tr key={row.limit_id ?? `${row.product}-${index}`}>
+                  <td>{row.product?.trim() || '—'}</td>
                   <td><span className={classes.badge}>{row.status?.trim() || '—'}</span></td>
                   <td>{money(row.lim_value, row.currency)}</td>
                   <td>{row.currency?.trim() || '—'}</td>
-                  <td>{row.product?.trim() || '—'}</td>
                   <td>{formatDay(row.start_date)}</td>
                   <td>{formatDay(row.end_date)}</td>
                   <td>{row.owner?.trim() || '—'}</td>

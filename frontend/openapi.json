@@ -199,6 +199,134 @@
         }
       }
     },
+    "/api/clients/{inn}/exports": {
+      "post": {
+        "summary": "Create Export",
+        "description": "Фоновая книга по разделам карточки. Доступ тот же, что у чтения карточки.",
+        "operationId": "create_export_api_clients__inn__exports_post",
+        "parameters": [
+          {
+            "name": "inn",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Inn"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exports/{export_id}": {
+      "get": {
+        "summary": "Export Status",
+        "operationId": "export_status_api_exports__export_id__get",
+        "parameters": [
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exports/{export_id}/download": {
+      "get": {
+        "summary": "Export Download",
+        "operationId": "export_download_api_exports__export_id__download_get",
+        "parameters": [
+          {
+            "name": "export_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Export Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health Check",
@@ -359,6 +487,111 @@
         ],
         "title": "ClientShort",
         "description": "Строка подсказки поиска: t_lm_1_2_clients."
+      },
+      "ExportCreated": {
+        "properties": {
+          "export_id": {
+            "type": "string",
+            "title": "Export Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "export_id"
+        ],
+        "title": "ExportCreated"
+      },
+      "ExportFilters": {
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "title": "As Of",
+            "default": ""
+          },
+          "today": {
+            "type": "string",
+            "title": "Today",
+            "default": ""
+          },
+          "show_closed": {
+            "type": "boolean",
+            "title": "Show Closed",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "ExportFilters"
+      },
+      "ExportRequest": {
+        "properties": {
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/ExportSection"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Sections"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/ExportFilters",
+            "default": {
+              "as_of": "",
+              "today": "",
+              "show_closed": true
+            }
+          }
+        },
+        "type": "object",
+        "required": [
+          "sections"
+        ],
+        "title": "ExportRequest"
+      },
+      "ExportSection": {
+        "type": "string",
+        "enum": [
+          "info",
+          "limits",
+          "applications",
+          "reserves"
+        ],
+        "title": "ExportSection"
+      },
+      "ExportStatus": {
+        "properties": {
+          "export_id": {
+            "type": "string",
+            "title": "Export Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "collecting",
+              "building",
+              "ready",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "progress": {
+            "type": "integer",
+            "title": "Progress"
+          },
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "export_id",
+          "status",
+          "progress",
+          "stage"
+        ],
+        "title": "ExportStatus"
       },
       "GroupCard": {
         "properties": {

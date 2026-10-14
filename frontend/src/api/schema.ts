@@ -104,6 +104,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/clients/{inn}/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Export
+         * @description Фоновая книга по разделам карточки. Доступ тот же, что у чтения карточки.
+         */
+        post: operations["create_export_api_clients__inn__exports_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exports/{export_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Status */
+        get: operations["export_status_api_exports__export_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/exports/{export_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Download */
+        get: operations["export_download_api_exports__export_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -164,6 +218,61 @@ export interface components {
             name?: string | null;
             /** Kpp */
             kpp?: string | null;
+        };
+        /** ExportCreated */
+        ExportCreated: {
+            /** Export Id */
+            export_id: string;
+        };
+        /** ExportFilters */
+        ExportFilters: {
+            /**
+             * As Of
+             * @default
+             */
+            as_of: string;
+            /**
+             * Today
+             * @default
+             */
+            today: string;
+            /**
+             * Show Closed
+             * @default true
+             */
+            show_closed: boolean;
+        };
+        /** ExportRequest */
+        ExportRequest: {
+            /** Sections */
+            sections: components["schemas"]["ExportSection"][];
+            /**
+             * @default {
+             *       "as_of": "",
+             *       "today": "",
+             *       "show_closed": true
+             *     }
+             */
+            filters: components["schemas"]["ExportFilters"];
+        };
+        /**
+         * ExportSection
+         * @enum {string}
+         */
+        ExportSection: "info" | "limits" | "applications" | "reserves";
+        /** ExportStatus */
+        ExportStatus: {
+            /** Export Id */
+            export_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "collecting" | "building" | "ready" | "failed";
+            /** Progress */
+            progress: number;
+            /** Stage */
+            stage: string;
         };
         /** GroupCard */
         GroupCard: {
@@ -488,6 +597,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GroupCard"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_export_api_clients__inn__exports_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                inn: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_status_api_exports__export_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                export_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_download_api_exports__export_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                export_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

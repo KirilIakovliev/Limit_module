@@ -11,8 +11,7 @@
     "build": "tsc --noEmit && vite build",
     "lint": "eslint .",
     "test": "vitest run",
-    "openapi": "python3 scripts/export_openapi.py && openapi-typescript openapi.json -o src/api/schema.ts",
-    "publish:next": "node scripts/publish-next.mjs"
+    "openapi": "python3 scripts/export_openapi.py && openapi-typescript openapi.json -o src/api/schema.ts"
   },
   "dependencies": {
     "@mantine/core": "9.7.1",

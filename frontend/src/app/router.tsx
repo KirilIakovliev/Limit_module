@@ -1,7 +1,16 @@
+import { Link, createBrowserRouter, type RouteObject } from 'react-router';
 import { AppLayout } from '../features/layout/AppLayout';
 import { CompanyPage } from '../features/company/CompanyPage';
 import { SearchPage } from '../features/search/SearchPage';
-import { createBrowserRouter, type RouteObject } from 'react-router';
+
+function MissingPage() {
+  return (
+    <section>
+      <h2>Страница не найдена</h2>
+      <p><Link to="/">К поиску</Link></p>
+    </section>
+  );
+}
 
 /** Следующие экраны добавляются в этот список. */
 export const routes: RouteObject[] = [
@@ -11,17 +20,11 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <SearchPage /> },
       { path: 'company/:inn', element: <CompanyPage /> },
+      { path: '*', element: <MissingPage /> },
     ],
   },
 ];
 
-/** Vite base `/next/` пишет BASE_URL со слэшем; Router ждёт basename без него. */
-export function routerBasename(baseUrl: string): string | undefined {
-  if (baseUrl === '/' || baseUrl === '') return undefined;
-  const trimmed = baseUrl.replace(/\/$/, '');
-  return trimmed === '' ? undefined : trimmed;
-}
-
 export function createAppRouter() {
-  return createBrowserRouter(routes, { basename: routerBasename(import.meta.env.BASE_URL) });
+  return createBrowserRouter(routes);
 }

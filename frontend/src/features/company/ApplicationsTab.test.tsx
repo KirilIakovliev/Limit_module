@@ -46,7 +46,7 @@ describe('ApplicationsTab', () => {
     expect(await screen.findByRole('heading', { name: 'Потенциальные сделки' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Лимиты на рассмотрении' })).toHaveAttribute('aria-selected', 'true');
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
-    expect(headers).toEqual(['Статус', 'Сумма', 'Валюта', 'Продукт', 'Дата начала', 'Дата окончания', 'Владелец', 'Комментарий']);
+    expect(headers).toEqual(['Продукт', 'Статус', 'Сумма', 'Валюта', 'Дата начала', 'Дата окончания', 'Владелец', 'Комментарий']);
     expect(screen.getByText('ЦФА')).toBeInTheDocument();
     expect(screen.getByText('30.01.2026')).toBeInTheDocument();
     expect(screen.queryByText('не из витрины')).not.toBeInTheDocument();

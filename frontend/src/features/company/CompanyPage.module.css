@@ -7,6 +7,7 @@
 
 .back {
   justify-self: start;
+  margin-top: 24px;
   color: var(--color-accent);
   font-size: 13px;
   font-weight: 600;
@@ -138,6 +139,57 @@
   animation: tabline 220ms ease;
 }
 
+.flag {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.events,
+.eventsOn {
+  display: block;
+  width: 100%;
+  margin: -6px -8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.events span,
+.eventsOn span {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.events .flag,
+.eventsOn .flag {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.events strong,
+.eventsOn strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.events:hover,
+.events:focus-visible,
+.eventsOn {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  outline: none;
+}
+
 .fresh {
   margin: 0 0 8px;
   white-space: nowrap;
@@ -164,10 +216,74 @@
   box-shadow: none;
 }
 
-.blockHead {
+.groupBar {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.45fr) repeat(5, minmax(0, 1fr));
+  gap: 8px 12px;
+  align-items: start;
+  position: relative;
+  width: 100%;
+  padding: 2px 28px 2px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel h2:has(.groupBar) {
+  width: 100%;
+}
+
+.groupName {
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 700;
+  padding-top: 14px;
+}
+
+.barFact {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.barFact > span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.barFact strong {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.chevron,
+.chevronOpen {
+  position: absolute;
+  top: 22px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--color-text-muted);
+  border-bottom: 2px solid var(--color-text-muted);
+}
+
+.chevron {
+  transform: rotate(45deg);
+}
+
+.chevronOpen {
+  top: 26px;
+  transform: rotate(-135deg);
+}
+
+.colName {
+  width: 22%;
 }
 
 .hint {
@@ -215,6 +331,8 @@
 }
 
 .scroll {
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -223,6 +341,10 @@
   width: 100%;
   border-collapse: collapse;
   margin-top: 10px;
+}
+
+.grid {
+  table-layout: fixed;
 }
 
 .attrs th,

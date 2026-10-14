@@ -5,6 +5,7 @@ import { ApiError } from '../../api/http';
 import { useClient, useGroup, useLimits, useMeta } from '../../api/hooks';
 import { compactMoney, formatStamp } from './format';
 import { ApplicationsTab } from './ApplicationsTab';
+import { EventsTab } from './EventsTab';
 import { ExportMenu } from './ExportMenu';
 import { LimitsTab } from './LimitsTab';
 import { todayIso } from './limitsView';
@@ -19,6 +20,7 @@ type Summary = NonNullable<NonNullable<ReturnType<typeof useGroup>['data']>['sum
 export function CompanyPage() {
   const { inn = '' } = useParams();
   const [tab, setTab] = useState<(typeof TABS)[number]>('Общая информация');
+  const [eventsOpen, setEventsOpen] = useState(false);
   const today = todayIso();
   const [day, setDay] = useState(today);
   const [showClosed, setShowClosed] = useState(true);
@@ -42,7 +44,17 @@ export function CompanyPage() {
               <Field label="Компания" value={company.name || '—'} />
               <Field label="ИНН" value={company.inn} />
               <Field label="КПП" value={text(company.kpp)} />
-              <Field label="События" value={NO_DATA} muted />
+              <div className={classes.field}>
+                <button
+                  type="button"
+                  className={eventsOpen ? classes.eventsOn : classes.events}
+                  aria-expanded={eventsOpen}
+                  onClick={() => setEventsOpen((value) => !value)}
+                >
+                  <span>События <span className={classes.flag}>(в разработке)</span></span>
+                  <strong>{NO_DATA}</strong>
+                </button>
+              </div>
             </div>
           </section>
           <div className={classes.toolbar}>
@@ -54,10 +66,10 @@ export function CompanyPage() {
                     key={item}
                     type="button"
                     role="tab"
-                    className={item === tab ? classes.tabActive : classes.tab}
-                    aria-selected={item === tab}
+                    className={item === tab && !eventsOpen ? classes.tabActive : classes.tab}
+                    aria-selected={item === tab && !eventsOpen}
                     aria-disabled={!open}
-                    onClick={() => { if (open) setTab(item); }}
+                    onClick={() => { if (open) { setEventsOpen(false); setTab(item); } }}
                   >
                     {item}
                   </button>
@@ -69,7 +81,7 @@ export function CompanyPage() {
               <p className={classes.fresh}>Дата актуализации данных: {formatStamp(meta.data?.updated_at)}</p>
             </div>
           </div>
-          {tab === 'Общая информация' ? (
+          {eventsOpen ? <EventsTab /> : tab === 'Общая информация' ? (
             <>
               <InfoTable company={company} />
               {crmId ? <GroupBlock query={group} currentInn={company.inn} /> : null}
@@ -92,56 +104,69 @@ function GroupBlock({
   query: ReturnType<typeof useGroup>;
   currentInn: string;
 }) {
+  const [open, setOpen] = useState(false);
   if (query.isError) {
     return <section className={classes.panel}><p className={classes.muted}>Не удалось загрузить данные группы</p></section>;
   }
   if (!query.data) return <Skeleton className={classes.bone} height={120} radius="md" />;
   const { data } = query;
   const rows = groupCompanies(data.members, currentInn);
+  const toggle = () => setOpen((value) => !value);
+  const name = data.name || 'Группа компаний';
   return (
-    <section className={`${classes.panel} ${classes.rise}`} aria-label="Группа компаний">
-      <div className={classes.blockHead}>
-        <h2>{data.name || 'Группа компаний'}</h2>
-      </div>
-      <h3>Единый лимит</h3>
-      <div className={classes.metrics}>
-        <Fact label="Сумма единого лимита" value={<SummaryLines rows={data.summaries} field="unified_limit" />} />
-        <Fact label="Единый утилизированный лимит" value={<SummaryLines rows={data.summaries} field="unified_utilized" />} />
-        <Fact label="Единый доступный лимит" value={<SummaryLines rows={data.summaries} field="unified_available" />} />
-        <Fact label="Совокупный лимит" value={<SummaryLines rows={data.summaries} field="total_limit" />} />
-        <Fact label="«Крышка»" value={NO_DATA} />
-      </div>
-      <h3>Компании в структуре ГК</h3>
-      <p className={classes.hint}>Выберите наименование компании, чтобы перейти к её карточке</p>
-      <div className={classes.scroll}>
-        <table className={classes.grid}>
-          <thead>
-            <tr>
-              <th>Наименование ГК</th>
-              <th>Совокупный лимит</th>
-              <th>Сумма единого лимита</th>
-              <th>Единый утилизированный лимит</th>
-              <th>Единый доступный лимит</th>
-              <th>«Крышка»</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.inn}>
-                <td>
-                  <CompanyName row={row} currentInn={currentInn} />
-                </td>
-                <td>{NO_DATA}</td>
-                <td><MemberLines rows={row.rows} field="unified_limit" /></td>
-                <td><MemberLines rows={row.rows} field="unified_utilized" /></td>
-                <td><MemberLines rows={row.rows} field="unified_available" /></td>
-                <td>{NO_DATA}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <>
+      <section className={`${classes.panel} ${classes.rise}`} aria-label="Группа компаний">
+        <h2>
+          <button type="button" className={classes.groupBar} aria-expanded={open} aria-controls="group-companies" onClick={toggle}>
+            <span className={classes.groupName}>{name}</span>
+            <Fact plain label="Совокупный лимит" value={<SummaryLines rows={data.summaries} field="total_limit" />} />
+            <Fact plain label="Сумма единого лимита" value={<SummaryLines rows={data.summaries} field="unified_limit" />} />
+            <Fact plain label="Единый утилизированный лимит" value={<SummaryLines rows={data.summaries} field="unified_utilized" />} />
+            <Fact plain label="Единый доступный лимит" value={<SummaryLines rows={data.summaries} field="unified_available" />} />
+            <Fact plain label="«Крышка»" value={NO_DATA} />
+            <span className={open ? classes.chevronOpen : classes.chevron} aria-hidden="true" />
+          </button>
+        </h2>
+      </section>
+      {open ? (
+        <section className={`${classes.panel} ${classes.rise}`} id="group-companies" aria-label="Компании в структуре ГК">
+          <h3>Компании в структуре ГК</h3>
+          <p className={classes.hint}>Выберите наименование компании, чтобы перейти к её карточке</p>
+          <div className={classes.scroll}>
+            <table className={classes.grid}>
+              <colgroup>
+                <col className={classes.colName} />
+                <col /><col /><col /><col /><col />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>Наименование ГК</th>
+                  <th>Совокупный лимит</th>
+                  <th>Сумма единого лимита</th>
+                  <th>Единый утилизированный лимит</th>
+                  <th>Единый доступный лимит</th>
+                  <th>«Крышка»</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.inn}>
+                    <td>
+                      <CompanyName row={row} currentInn={currentInn} />
+                    </td>
+                    <td>{NO_DATA}</td>
+                    <td><MemberLines rows={row.rows} field="unified_limit" /></td>
+                    <td><MemberLines rows={row.rows} field="unified_utilized" /></td>
+                    <td><MemberLines rows={row.rows} field="unified_available" /></td>
+                    <td>{NO_DATA}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }
 
@@ -251,12 +276,12 @@ function Field({ label, value, muted = false }: { label: string; value: string; 
   );
 }
 
-function Fact({ label, value }: { label: string; value: ReactNode }) {
+function Fact({ label, value, plain = false }: { label: string; value: ReactNode; plain?: boolean }) {
   return (
-    <div className={classes.fact}>
+    <span className={plain ? classes.barFact : classes.fact}>
       <span>{label}</span>
       <strong>{value}</strong>
-    </div>
+    </span>
   );
 }
 

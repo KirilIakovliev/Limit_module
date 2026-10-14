@@ -1,6 +1,6 @@
-# Контекст сборки — корень репозитория (Dockerfile.prod).
-# В образ копируются только:
-#   api/requirements.txt, api/app, api/alembic, api/alembic.ini, web
+# Контекст сборки — корень репозитория.
+# API-образ (Dockerfile.prod) копирует api/.
+# Образ сборки frontend (frontend/Dockerfile) копирует только frontend/.
 # Не исключать эти пути.
 
 .git
@@ -21,6 +21,13 @@ htmlcov
 venv
 
 preview.html
+frontend/node_modules
+frontend/dist
+web/index.html
+web/assets
+web/next
+web/.next-staging
+web/.ui-staging
 
 docs
 specs

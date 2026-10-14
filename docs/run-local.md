@@ -20,16 +20,55 @@ cp .env.example .env
 
 Чтобы стучаться с локального API в стендовую базу, в `.env` выставить `POSTGRES_HOST=t-lmts1-pdb51.base.akbars.ru`, порт `5432` и пароль стенда (контейнер `db` тогда не используется). Обычный локальный контур — хост `db`, см. `.env.example`.
 
+## Сборка интерфейса
+
+Страницы не входят в образ API. Локальный nginx на `:8000` читает уже собранный каталог `frontend/dist` и прототип `web/old-prototype/`. Пока `dist` нет, `http://localhost:8000/` пустой.
+
+Нужен Node `>= 20.19`. Команды из `frontend/`. `npm ci` идёт в Artifactory по `frontend/.npmrc`, не в registry.npmjs.org. Токен в git не хранится: если Artifactory отвечает 401, логин кладётся в пользовательский `~/.npmrc`, не в репозиторий.
+
+```bash
+cd frontend
+npm ci
+npm run build
+```
+
+`npm run build` — это `tsc --noEmit` и Vite. Результат: `frontend/dist/index.html` и `frontend/dist/assets/`. Образ заново не собирать: nginx смонтировал каталог, после сборки достаточно обновить страницу.
+
+Прототип отдельно не собирается. Он открывается как файлы: http://localhost:8000/old-prototype/.
+
+Правки UI с перезагрузкой модулей, без nginx:
+
+```bash
+# API уже слушает :8001
+cd frontend
+npm run dev
+```
+
+Vite поднимает http://localhost:5173 и проксирует `/api` на `127.0.0.1:8001`. Этот режим не отдаёт `/old-prototype/`.
+
+Проверки сборки, без браузера:
+
+```bash
+cd frontend
+npm test
+npm run lint
+```
+
 ## С нуля
 
 ```bash
 cp .env.example .env          # если ещё нет
+cd frontend && npm ci && npm run build && cd ..
 docker compose down -v
 docker compose up --build
-# порт на хосте занят: POSTGRES_PUBLISH_PORT=5434 docker compose up --build
+# порт Postgres на хосте занят: POSTGRES_PUBLISH_PORT=5434 docker compose up --build
 ```
 
-Открыть http://localhost:8000. База: `limitmodule`, пользователь `limitmodule_test` (пароль в `.env`, по умолчанию `localdev`).
+`web` использует локальный образ `nginx:1.27-alpine` и сам его не скачивает. Если образа нет, один раз получить его там, где Docker Hub доступен, и загрузить через `docker load`.
+
+Открыть http://localhost:8000 — новый UI. Старый: http://localhost:8000/old-prototype/. API напрямую: http://localhost:8001 (`/` там JSON 404, страниц нет). База: `limitmodule`, пользователь `limitmodule_test` (пароль в `.env`, по умолчанию `localdev`).
+
+Код API смонтирован в контейнер. После правки `api/app` процесс сам не перечитывает файлы: `docker compose restart api`. Сборку React из-за этого повторять не нужно.
 
 ```bash
 curl -s http://localhost:8000/api/health

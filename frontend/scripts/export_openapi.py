@@ -6,7 +6,6 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[2]
 os.environ["REDIS_URL"] = ""
-os.environ["WEB_DIR"] = str(root / "web")
 sys.path.insert(0, str(root / "api"))
 
 from app.main import app  # noqa: E402

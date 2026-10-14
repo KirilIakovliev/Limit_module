@@ -101,7 +101,7 @@ describe('SearchPage', () => {
     expect(screen.getByText('784201001')).toBeInTheDocument();
     expect(screen.getByText('Ещё одна')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
-    const profile = screen.getAllByRole('link', { name: 'Открыть профиль' })
+    const profile = screen.getAllByRole('link', { name: 'Открыть карточку' })
       .find((link) => link.getAttribute('href')?.includes('7702070139'));
     fireEvent.click(profile!);
     expect(await screen.findByRole('link', { name: 'К поиску' })).toBeInTheDocument();

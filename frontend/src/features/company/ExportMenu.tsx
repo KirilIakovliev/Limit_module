@@ -138,7 +138,6 @@ export function ExportMenu({
             setOpened(next);
           }}
         >
-          <span aria-hidden="true">↓</span>
           Выгрузить в Excel
           <span className={classes.chev} aria-hidden="true">▾</span>
         </button>

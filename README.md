@@ -2,7 +2,7 @@
 
 Просмотр лимитов: поиск клиента по названию или ИНН, затем карточка. Backend читает готовые витрины PostgreSQL и сам их не собирает.
 
-Стек: PostgreSQL 16 и FastAPI. API и страница отдаются одним процессом на `:8000`.
+Стек: PostgreSQL 16, FastAPI и nginx. Браузер открывает nginx на `:8000`. API слушает `:8001` и с той же страницы доступен по `/api`.
 
 ## Локальный запуск
 
@@ -18,7 +18,9 @@ docker compose up --build
 | | |
 |---|---|
 | Интерфейс | http://localhost:8000 |
+| Старый прототип | http://localhost:8000/old-prototype/ |
 | Health | http://localhost:8000/api/health |
+| API напрямую | http://localhost:8001/api/health |
 | Swagger | http://localhost:8000/docs |
 | Postgres | `localhost:5433` (`limitmodule_test` / `limitmodule`, пароль в `.env`) |
 
@@ -26,7 +28,7 @@ docker compose up --build
 
 Если `docker pull` падает с `TLS handshake timeout`, это сеть до Docker Hub, не compose. Повторить pull или перенести образы `postgres:16-alpine` и `python:3.12-slim` через `docker save` / `docker load`.
 
-`{"detail":"Not Found"}` на `/` значит, что API жив, а каталог фронтенда не смонтирован. В `curl localhost:8000/api/health` смотреть `web_mounted`; в контейнере должен быть `/srv/web/index.html`.
+`{"detail":"Not Found"}` на `http://localhost:8001/` — нормальный ответ API: страниц он не отдаёт. Интерфейс открывается на порту `8000`.
 
 ## Тесты
 
@@ -52,7 +54,7 @@ python3 tools/verify_build.py
 |---|---|
 | Backend | `api/app` — `main.py`, `queries.py`, `db.py`, `models.py` |
 | Миграции приложения | `api/alembic` — схема `app`, не витрины |
-| Frontend | `web/`. Excel собирается в браузере, файл `web/js/xlsx-writer.js` |
+| Frontend | React в `frontend/`, отдельный образ nginx. Старый UI: `web/old-prototype/` (`/old-prototype/`) |
 | Локальный снимок БД | `db/local/` — `00`, `10`–`12` DDL, `90`–`91` фикстуры |
 | Стенд | [docs/run-stand.md](docs/run-stand.md), чарт `deployment/helm-chart/limitmodule`, nginx `deployment/nginx/limitmodule.conf` |
 | Спецификации | [specs/current.md](specs/current.md) |

@@ -6,5 +6,4 @@ metadata:
     {{- include "limitmodule.labels" . | nindent 4 }}
 data:
   REDIS_URL: ""
-  WEB_DIR: {{ .Values.app.webDir | quote }}
   REPLICA_SCHEMA: {{ .Values.app.replicaSchema | quote }}

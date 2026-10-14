@@ -201,7 +201,7 @@ def _write_info(ws, snap: Snapshot, styles) -> None:
         "Единый утилизированный лимит", "Единый доступный лимит", "Совокупный лимит", "«Крышка»",
     )
     _header(ws, row, columns, styles)
-    for index, width in enumerate((36, 16, 12, 24, 28, 26, 22, 16)):
+    for index, width in enumerate((36, 16, 24, 24, 28, 26, 22, 16)):
         ws.set_column(index, index, width)
     companies = row
     row += 1
@@ -240,7 +240,7 @@ def _write_limits(ws, snap: Snapshot, styles) -> None:
         ("Крышка", "wrap", "lim_top"),
     )
     _header(ws, header, [name for name, _, _ in columns], styles)
-    for index, width in enumerate((28, 22, 36, 16, 16, 16, 12, 20, 18, 16, 12, 12, 40, 24)):
+    for index, width in enumerate((28, 22, 36, 24, 24, 24, 12, 20, 18, 16, 12, 12, 40, 24)):
         ws.set_column(index, index, width)
     rows = visible_limits((snap.limits or {}).get("limits") or [], snap.filters)
     row = header + 1
@@ -274,17 +274,17 @@ def _write_limits(ws, snap: Snapshot, styles) -> None:
 def _write_applications(ws, snap: Snapshot, styles) -> None:
     header = _preamble(ws, snap, "без отбора по дате; комментарий нет в витрине", styles)
     columns = (
+        ("Продукт", "text", "product"),
         ("Статус", "text", "status"),
         ("Сумма", "money", "lim_value"),
         ("Валюта", "text", "currency"),
-        ("Продукт", "text", "product"),
         ("Дата начала", "date", "start_date"),
         ("Дата окончания", "date", "end_date"),
         ("Владелец", "text", "owner"),
         ("Комментарий", "fixed", DASH),
     )
     _header(ws, header, [name for name, _, _ in columns], styles)
-    for index, width in enumerate((36, 16, 12, 22, 16, 18, 28, 18)):
+    for index, width in enumerate((22, 36, 24, 12, 16, 18, 28, 18)):
         ws.set_column(index, index, width)
     row = header + 1
     for item in (snap.limits or {}).get("applications") or []:

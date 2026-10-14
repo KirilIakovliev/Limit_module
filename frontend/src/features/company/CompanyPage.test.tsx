@@ -67,20 +67,26 @@ describe('CompanyPage', () => {
       return Promise.resolve(json(card));
     });
     renderProfile();
-    expect(await screen.findByRole('heading', { name: 'ГК ВТБ' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /ГК ВТБ/ })).toBeInTheDocument();
     expect(screen.getByText('Дата актуализации данных: 12.09.2025 14:35')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Общая информация' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Лимиты' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('tab', { name: 'Лимиты' })).not.toHaveAttribute('aria-disabled', 'true');
+    expect(screen.queryByRole('tab', { name: /События/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /События/ })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText(/Валют:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/участников:/)).not.toBeInTheDocument();
     expect(screen.getByText('213,5 млн RUB')).toBeInTheDocument();
+    expect(screen.queryByText('текущая компания')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /ГК ВТБ/ }));
+    expect(screen.getByRole('button', { name: /ГК ВТБ/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('heading', { name: 'Компании в структуре ГК' })).toBeInTheDocument();
     expect(screen.getByText('текущая компания')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Банк ВТБ (ПАО)' })).not.toBeInTheDocument();
     expect(screen.getByText('карточки нет')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Без карточки' })).not.toBeInTheDocument();
-    const titles = screen.getAllByRole('heading').map((heading) => heading.textContent);
-    expect(titles.indexOf('ГК ВТБ')).toBeGreaterThan(titles.indexOf('Общая информация'));
+    const titles = screen.getAllByRole('heading').map((heading) => heading.textContent ?? '');
+    expect(titles.findIndex((title) => title.includes('ГК ВТБ'))).toBeGreaterThan(titles.findIndex((title) => title.includes('Общая информация')));
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
     expect(headers).toEqual([
       'Атрибут',
@@ -93,11 +99,17 @@ describe('CompanyPage', () => {
       '«Крышка»',
     ]);
     fireEvent.click(screen.getByRole('link', { name: 'ЗАО «Банк ВТБ (Беларусь)»' }));
+    expect(await screen.findByRole('heading', { name: /ГК ВТБ/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /ГК ВТБ/ }));
     expect(await screen.findByRole('link', { name: 'Банк ВТБ (ПАО)' })).toHaveAttribute('href', '/company/7702070139');
     expect(screen.queryByRole('link', { name: 'ЗАО «Банк ВТБ (Беларусь)»' })).not.toBeInTheDocument();
     expect(screen.getAllByText('нет данных').length).toBeGreaterThanOrEqual(3);
     expect(urls.some((url) => url.includes('/api/groups/1-VTB'))).toBe(true);
     expect(urls.some((url) => url.includes('/limits'))).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: /События/ }));
+    expect(await screen.findByText(/Раздел в разработке/)).toBeInTheDocument();
+    expect(screen.getByText('Текущая ликвидность')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Общая информация' })).toHaveAttribute('aria-selected', 'false');
     fireEvent.click(screen.getByRole('link', { name: 'К поиску' }));
     expect(await screen.findByRole('heading', { name: 'Поиск компании' })).toBeInTheDocument();
   });
