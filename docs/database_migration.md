@@ -23,7 +23,8 @@ ER прототипа и TO-BE (картинки Graphviz) лежат **вне �
 - Ключ клиента — ИНН; ключ ГК — `group_crm_id1` / `gk_crm_id`.
 - Поля, которых нет в DDL источника, **не создаются** (MISSING в UI как «—» / «нет в витрине»).
 - Удалены: `db/01–06`, старые endpoints, `ensure_schema`, `refresh_companies.py`,
-  `demo-data.js`, `events.js`.
+  `demo-data.js`.
+- Вкладка «События» на месте: список считает браузер в `web/js/events.js` по уже загруженной карточке, отдельного запроса нет (spec 2026-09-29). Вкладка «Финансовая отчётность» скрыта.
 
 ## Как теперь устроено
 
@@ -79,7 +80,7 @@ SQL в `queries.py` без схемы в именах таблиц. `Decimal` у
 | `api/app/models.py` | не было | Pydantic, Money=str | точность NUMERIC |
 | `api/app/main.py` | `/companies/{id}` | `/clients`, `/groups/{crm_id}` | ключ ИНН |
 | `web/js/api.js` | `/companies` + fallback | `/clients`, `/groups` | маппинг полей |
-| `web/js/tab-tree.js` | id, события, отчётность | inn, заглушки сублимитов/резервов | состав БТ |
+| `web/js/tab-tree.js` | id, отчётность | inn; события в `events.js`; заглушки сублимитов/резервов | состав БТ |
 | `web/js/table-views.js` | ₽, суммы в JS | валюта строки, rest_lim из витрины | не пересчитывать |
 | `web/js/format.js` | `new Date`, всегда ₽ | ISO-дата, `money(v, currency)` | зона и валюта |
 | Helm ConfigMap | GROUPS/LIMITS/RESERVES_SQL | `REPLICA_SCHEMA` | нет ensure_schema |

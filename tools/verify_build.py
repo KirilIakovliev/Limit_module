@@ -6,7 +6,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-WEB = ROOT / "web"
+WEB = ROOT / "web" / "old-prototype"
 
 CHECKS = [
     ("css/styles.css", "branch-left",            "перемычка ветки «Компания»"),

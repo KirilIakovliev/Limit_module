@@ -1,21 +1,20 @@
 """Лимитный модуль АББ — backend API. Читает витрины на отображение."""
 import os
 from contextlib import asynccontextmanager
-from pathlib import Path
+from uuid import UUID
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from psycopg.errors import UndefinedTable
+from starlette.background import BackgroundTask
 
 from . import db, models, queries
 from .cache import Cache
+from .export_book import Filters
+from .export_jobs import ExportBusy, ExportCreated, ExportRequest, ExportStatus, runner
 
 response_cache = Cache(os.getenv("REDIS_URL"))
-
-FRONTEND_DIR = Path(os.getenv("WEB_DIR", "/srv/web"))
-FRONTEND_AVAILABLE = (FRONTEND_DIR / "index.html").is_file()
 
 MARTS_UNAVAILABLE = "Витрины на отображение ещё не загружены"
 
@@ -39,10 +38,6 @@ async def lifespan(app: FastAPI):
         )
     except Exception as exc:  # noqa: BLE001
         print(f"[АББ] витрины: каталог недоступен ({exc})", flush=True)
-    print(
-        f"[АББ] фронтенд: {FRONTEND_DIR} -> {'раздаётся' if FRONTEND_AVAILABLE else 'НЕ НАЙДЕН, открыть / для подсказки'}",
-        flush=True,
-    )
     yield
     db.close_pool()
 
@@ -105,6 +100,43 @@ def group_card(crm_id: str):
     return models.GroupCard.model_validate(g)
 
 
+@app.post("/api/clients/{inn}/exports", status_code=202, response_model=ExportCreated)
+def create_export(inn: str, body: ExportRequest):
+    """Фоновая книга по разделам карточки. Доступ тот же, что у чтения карточки."""
+    client = _read_marts(lambda: queries.get_client(inn))
+    if not client:
+        raise HTTPException(404, "Клиент не найден")
+    filters = Filters(body.filters.as_of, body.filters.today, body.filters.show_closed)
+    try:
+        job = runner.submit(client, body.sections, filters)
+    except ExportBusy:
+        raise HTTPException(429, "Слишком много выгрузок") from None
+    return ExportCreated(export_id=job.id)
+
+
+@app.get("/api/exports/{export_id}", response_model=ExportStatus)
+def export_status(export_id: UUID):
+    job = runner.view(str(export_id))
+    if not job:
+        raise HTTPException(404, "Выгрузка не найдена")
+    return ExportStatus(export_id=job.export_id, status=job.status, progress=job.progress, stage=job.stage)
+
+
+@app.get("/api/exports/{export_id}/download")
+def export_download(export_id: UUID):
+    job = runner.view(str(export_id))
+    if not job:
+        raise HTTPException(404, "Выгрузка не найдена")
+    if job.status != "ready" or job.path is None or not job.path.is_file():
+        raise HTTPException(409, "Файл ещё не готов")
+    return FileResponse(
+        job.path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=job.filename,
+        background=BackgroundTask(runner.finish, str(export_id)),
+    )
+
+
 @app.get("/api/health")
 def health_check():
     missing: list[str] = []
@@ -124,22 +156,4 @@ def health_check():
         "marts": db_ok and not missing,
         "missing_marts": missing,
         "cache": response_cache.enabled,
-        "web_dir": str(FRONTEND_DIR),
-        "web_mounted": FRONTEND_AVAILABLE,
     }
-
-
-if FRONTEND_AVAILABLE:
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="web")
-else:
-    @app.get("/", response_class=HTMLResponse)
-    def frontend_missing_page():
-        return f"""<!doctype html><html lang="ru"><meta charset="utf-8">
-<title>Фронтенд не подключён</title>
-<body style="font:15px/1.6 system-ui;max-width:640px;margin:60px auto;padding:0 20px;color:#22303d">
-<h1 style="font-size:20px">Фронтенд не подключён</h1>
-<p>API работает, но папка <code>{FRONTEND_DIR}</code> внутри контейнера пуста или отсутствует,
-поэтому раздавать нечего.</p>
-<p>Проверка состояния: <a href="/api/health">/api/health</a> ·
-документация API: <a href="/docs">/docs</a></p>
-</body></html>"""

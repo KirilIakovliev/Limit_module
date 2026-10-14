@@ -11,21 +11,27 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-WEB = ROOT / "web"
+WEB = ROOT / "web" / "old-prototype"
 OUT = ROOT / "preview.html"
 
 html = (WEB / "index.html").read_text(encoding="utf-8")
 
 # <link rel="stylesheet" href="css/..."> -> <style>
+def _local(href: str) -> Path:
+    prefix = "/old-prototype/"
+    rel = href[len(prefix):] if href.startswith(prefix) else href.lstrip("/")
+    return WEB / rel
+
+
 def inline_css(m: re.Match) -> str:
-    css = (WEB / m.group(1)).read_text(encoding="utf-8")
+    css = _local(m.group(1)).read_text(encoding="utf-8")
     return f"<style>\n{css}\n</style>"
 
 html = re.sub(r'<link rel="stylesheet" href="([^"?]+)(?:\?[^"]*)?">', inline_css, html)
 
 # <script src="js/..."></script> -> <script>
 def inline_js(m: re.Match) -> str:
-    js = (WEB / m.group(1)).read_text(encoding="utf-8")
+    js = _local(m.group(1)).read_text(encoding="utf-8")
     return f"<script>\n{js}\n</script>"
 
 html = re.sub(r'<script src="([^"?]+)(?:\?[^"]*)?"></script>', inline_js, html)

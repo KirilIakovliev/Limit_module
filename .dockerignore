@@ -1,0 +1,42 @@
+# Контекст сборки — корень репозитория.
+# API-образ (Dockerfile.prod) копирует api/.
+# Образ сборки frontend (frontend/Dockerfile) копирует только frontend/.
+# Не исключать эти пути.
+
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+.coverage
+htmlcov
+
+.venv
+venv
+
+preview.html
+frontend/node_modules
+frontend/dist
+web/index.html
+web/assets
+web/next
+web/.next-staging
+web/.ui-staging
+
+docs
+specs
+tools
+db
+deployment
+api/tests
+api/requirements-dev.txt
+data
+docker-compose.yml
+docker-compose.local.yml
+docker-compose.override.yml
