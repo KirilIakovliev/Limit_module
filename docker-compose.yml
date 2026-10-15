@@ -1,5 +1,6 @@
 # ============================================================
-#   docker compose up --build          -> http://localhost:8000  (db + migrate + api)
+#   docker compose up --build          -> http://localhost:8000  (nginx: UI)
+#   API напрямую                         http://localhost:8001
 # Подключение: POSTGRES_HOST / USER / PASSWORD / DB / PORT из .env
 # Локально хост по умолчанию `db`. Стенд: t-lmts1-pdb51.base.akbars.ru
 # ============================================================
@@ -53,16 +54,28 @@ services:
       <<: *pg
       REPLICA_SCHEMA: ${REPLICA_SCHEMA:-sbox_rsk_drt}
       REDIS_URL: ${REDIS_URL:-}
-      WEB_DIR: /srv/web
     volumes:
       - ./api/app:/srv/app:ro
-      - ./web:/srv/web:ro
-      - ./data:/data
     depends_on:
       db: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
     ports:
-      - "8000:8000"
+      - "8001:8000"
+
+  # Локальный nginx. На стенде его нет: там уже стоит host nginx.
+  # Образ не тянуть из docker.io, если он уже есть локально.
+  web:
+    image: nginx:1.27-alpine
+    pull_policy: never
+    container_name: abb-web
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./web/old-prototype:/usr/share/nginx/legacy-root/old-prototype:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      api: { condition: service_started }
+    ports:
+      - "8000:80"
 
 volumes:
   pgdata:

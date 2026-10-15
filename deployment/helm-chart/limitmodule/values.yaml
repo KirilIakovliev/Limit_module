@@ -10,7 +10,6 @@ app:
   port: 8000
   bindLowPort: false
   replicaSchema: sbox_rsk_drt
-  webDir: /srv/web
   resources:
     requests:
       cpu: 200m

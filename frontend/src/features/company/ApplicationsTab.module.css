@@ -1,0 +1,124 @@
+.panel {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(var(--blur));
+  padding: 14px 16px;
+}
+
+.panel h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.retry {
+  border: 1px solid var(--color-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.retry:hover,
+.retry:focus-visible {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: var(--color-accent);
+  outline: none;
+}
+
+.muted,
+.missing {
+  margin: 10px 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.missing {
+  margin: 0;
+}
+
+.scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.grid {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.grid th {
+  padding: 0 10px 8px 0;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.grid td {
+  padding: 8px 10px 8px 0;
+  border-top: 1px solid var(--color-line);
+  color: var(--color-text);
+  font-size: 13px;
+  vertical-align: top;
+  white-space: nowrap;
+  transition: background-color 180ms ease;
+}
+
+.grid tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: #8a5a12;
+  background: rgba(244, 214, 156, 0.55);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.bone {
+  background: #e4edf5;
+}
+
+.rise {
+  animation: rise 220ms ease;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .retry,
+  .grid td,
+  .rise {
+    animation: none;
+    transition: none;
+  }
+}

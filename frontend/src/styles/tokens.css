@@ -1,0 +1,18 @@
+/* Палитра поиска и общего header. Экраны берут цвет только отсюда. */
+:root {
+  --font-sans: system-ui, "Segoe UI", sans-serif;
+  --color-bg: #eef4f8;
+  --color-surface: rgba(255, 255, 255, 0.72);
+  --color-text: #1b2559;
+  --color-text-muted: #7d8aa0;
+  --color-line: rgba(210, 222, 234, 0.9);
+  --color-accent: #1f8a4c;
+  --color-accent-soft: rgba(232, 246, 238, 0.9);
+  --color-danger: #c2413b;
+  --color-danger-soft: rgba(253, 236, 236, 0.82);
+  --radius: 12px;
+  --shadow: 0 10px 28px rgba(27, 37, 89, 0.06);
+  --blur: 12px;
+  --space-page: 20px;
+  --page-width: 920px;
+}
