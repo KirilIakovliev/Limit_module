@@ -15,6 +15,7 @@
 .stack {
   display: grid;
   gap: 28px;
+  padding-top: 28px;
 }
 
 .reveal {
@@ -32,15 +33,30 @@
 }
 
 .press {
-  transition: transform 150ms ease, box-shadow 150ms ease, background-color 180ms ease;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
-.press:not(:disabled):hover {
-  transform: translateY(-1px);
-}
-
+.press:not(:disabled):hover,
 .press:not(:disabled):active {
-  transform: translateY(0);
+  transform: none;
+}
+
+.press:not(:disabled):where([data-variant='filled']):hover {
+  background-color: #187541;
+}
+
+.press:not(:disabled):where([data-variant='filled']):active {
+  background-color: #115f35;
+}
+
+.press:not(:disabled):where([data-variant='default']):hover {
+  background-color: #d5dee8;
+}
+
+.press:not(:disabled):where([data-variant='outline']):hover {
+  background-color: rgba(31, 138, 76, 0.1);
+  border-color: #115f35;
+  color: #115f35;
 }
 
 .heading,

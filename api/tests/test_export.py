@@ -134,6 +134,7 @@ def test_section_order_and_single_sheet(tmp_path):
         "Валюта", "Дата установления", "Дата окончания",
     ]
     assert "ОУЛ" in headers and headers.index("ОУЛ") < headers.index("Ставка")
+    assert headers[headers.index("ОУЛ") + 1] == "Дата решения ОУЛ"
 
     book = tmp_path / "all.xlsx"
     seen = []

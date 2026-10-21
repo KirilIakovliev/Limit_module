@@ -234,13 +234,14 @@ def _write_limits(ws, snap: Snapshot, styles) -> None:
         ("Дата установления", "date", "start_date"),
         ("Дата окончания", "date", "end_date"),
         ("ОУЛ", "fixed", NO_DATA),
+        ("Дата решения ОУЛ", "fixed", NO_DATA),
         ("Ставка", "rate", "rate"),
         ("RAROC", "rate", "client_raroc"),
         ("Комментарий", "wrap", "comment"),
         ("Крышка", "wrap", "lim_top"),
     )
     _header(ws, header, [name for name, _, _ in columns], styles)
-    for index, width in enumerate((28, 22, 36, 24, 24, 24, 12, 20, 18, 16, 12, 12, 40, 24)):
+    for index, width in enumerate((28, 22, 36, 24, 24, 24, 12, 20, 18, 16, 22, 12, 12, 40, 24)):
         ws.set_column(index, index, width)
     rows = visible_limits((snap.limits or {}).get("limits") or [], snap.filters)
     row = header + 1

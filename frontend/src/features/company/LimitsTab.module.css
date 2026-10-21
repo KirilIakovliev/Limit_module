@@ -81,6 +81,36 @@
   overflow-x: auto;
 }
 
+.limitsScroll {
+  --limits-head: 32px;
+  --limits-row: 37px;
+  max-height: calc(var(--limits-head) + 7 * var(--limits-row));
+  margin-top: 8px;
+  overflow: auto;
+}
+
+.limitsScroll .grid {
+  margin-top: 0;
+}
+
+.limitsScroll .grid th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  height: var(--limits-head);
+  padding-top: 8px;
+  line-height: 16px;
+  background: #f7fbf9;
+  box-shadow: inset 0 -1px 0 var(--color-line);
+}
+
+.limitsScroll .grid td {
+  height: var(--limits-row);
+  box-sizing: border-box;
+  line-height: 20px;
+}
+
 .grid {
   width: max-content;
   min-width: 100%;
