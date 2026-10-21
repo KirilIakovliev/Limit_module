@@ -103,7 +103,7 @@ function emptyLimits(day: string, total: number, onDay: number) {
 
 function LimitTable({ rows }: { rows: LimitRow[] }) {
   return (
-    <div className={classes.scroll}>
+    <div className={`${classes.scroll} ${classes.limitsScroll}`}>
       <table className={classes.grid}>
         <thead>
           <tr>
@@ -118,6 +118,11 @@ function LimitTable({ rows }: { rows: LimitRow[] }) {
             <th>
               <Tooltip label="Орган установивший лимит" withArrow openDelay={0} position="top">
                 <span className={classes.oul} tabIndex={0}>ОУЛ</span>
+              </Tooltip>
+            </th>
+            <th>
+              <Tooltip label="Орган установивший лимит" withArrow openDelay={0} position="top">
+                <span className={classes.oul} tabIndex={0}>Дата решения ОУЛ</span>
               </Tooltip>
             </th>
             <th>Ставка</th>
@@ -141,6 +146,7 @@ function LimitTable({ rows }: { rows: LimitRow[] }) {
               <td>{row.currency?.trim() || '—'}</td>
               <td>{formatDay(row.start_date)}</td>
               <td>{formatDay(row.end_date)}</td>
+              <td>{NO_DATA}</td>
               <td>{NO_DATA}</td>
               <td>{rate(row.rate)}</td>
               <td>{row.client_raroc == null || row.client_raroc === '' ? '—' : String(row.client_raroc)}</td>

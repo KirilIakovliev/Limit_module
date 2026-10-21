@@ -104,6 +104,7 @@ describe('LimitsTab', () => {
     const headers = established.getAllByRole('columnheader').map((cell) => cell.textContent);
     expect(headers[0]).toBe('Продукт');
     expect(headers).toContain('ОУЛ');
+    expect(headers[headers.indexOf('ОУЛ') + 1]).toBe('Дата решения ОУЛ');
     expect(headers).not.toContain('Владелец');
     expect(established.getAllByText('нет данных').length).toBeGreaterThan(0);
     expect(established.getByText((text) => text.replace(/\s/g, ' ') === '100 000 000 RUB')).toBeInTheDocument();
@@ -115,6 +116,8 @@ describe('LimitsTab', () => {
     expect(established.getByText('Не активен – Срок действия лимита истёк')).toBeInTheDocument();
 
     fireEvent.mouseEnter(established.getAllByText('ОУЛ')[0]);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Орган установивший лимит');
+    fireEvent.mouseEnter(established.getAllByText('Дата решения ОУЛ')[0]);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Орган установивший лимит');
 
     const aggregate = within(screen.getByRole('region', { name: 'Единый сублимит' }));
