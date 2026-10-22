@@ -1,7 +1,7 @@
 import { Skeleton, Switch, Tooltip } from '@mantine/core';
 import { useState } from 'react';
 import { useGroup, useLimits } from '../../api/hooks';
-import { compactMoney, formatDay, money, rate } from './format';
+import { compactMoney, formatDay, money, raroc, rate } from './format';
 import { groupByOwner, todayIso, visibleLimits, type LimitRow } from './limitsView';
 import classes from './LimitsTab.module.css';
 
@@ -133,7 +133,7 @@ function LimitTable({ rows }: { rows: LimitRow[] }) {
         </thead>
         <tbody>
           {rows.map((row, index) => (
-            <tr key={row.limit_id ?? `${row.product}-${index}`} className={row.status_code === 'inactive' ? classes.closed : undefined}>
+            <tr key={`${row.limit_id ?? 'limit'}-${index}`} className={row.status_code === 'inactive' ? classes.closed : undefined}>
               <td><strong>{row.product?.trim() || '—'}</strong></td>
               <td>
                 <span className={row.status_code === 'inactive' ? classes.badgeClosed : classes.badge} title={row.src_status || undefined}>
@@ -149,7 +149,7 @@ function LimitTable({ rows }: { rows: LimitRow[] }) {
               <td>{NO_DATA}</td>
               <td>{NO_DATA}</td>
               <td>{rate(row.rate)}</td>
-              <td>{row.client_raroc == null || row.client_raroc === '' ? '—' : String(row.client_raroc)}</td>
+              <td>{raroc(row.client_raroc)}</td>
               <td className={classes.wrap}>{row.comment?.trim() || '—'}</td>
               <td className={classes.wrap}>{row.lim_top?.trim() || '—'}</td>
             </tr>

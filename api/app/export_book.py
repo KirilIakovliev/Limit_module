@@ -129,7 +129,7 @@ def _styles(book):
             "bottom_color": "#B7E2C8",
             "valign": "top",
         }),
-        "money": book.add_format({"num_format": "#,##0.00", "valign": "top"}),
+        "money": book.add_format({"num_format": "#,##0.00####", "valign": "top"}),
         "rate": book.add_format({"num_format": "0.00", "valign": "top"}),
         "day": book.add_format({"num_format": "dd.mm.yyyy", "valign": "top"}),
     }

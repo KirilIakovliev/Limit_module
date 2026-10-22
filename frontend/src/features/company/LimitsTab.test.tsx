@@ -3,7 +3,7 @@ import { createMemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../app/App';
 import { routes } from '../../app/router';
-import { formatDay } from './format';
+import { formatDay, money } from './format';
 import { todayIso } from './limitsView';
 
 const card = {
@@ -126,9 +126,47 @@ describe('LimitsTab', () => {
     expect(aggregate.getByText('24,1 млн RUB')).toBeInTheDocument();
     expect(aggregate.queryByRole('heading', { name: /Единый сублимит ·/ })).not.toBeInTheDocument();
     expect(aggregate.queryByText('210,5 млн RUB')).not.toBeInTheDocument();
+    expect(established.getByText('4,75')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Единый лимит' })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Лимиты' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Лимиты на рассмотрении' })).not.toHaveAttribute('aria-disabled', 'true');
     expect(screen.getByRole('tab', { name: 'Резервы' })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('показывает обе строки с одним limit_id и не округляет долю', async () => {
+    const duplicated = {
+      ...limits,
+      limits: [
+        {
+          limit_id: 'same', owner: 'Инвестиционный блок', product: 'БКФ_ТоргЦб+; Акция ао', currency: '%',
+          status: 'Активен – Лимит доступен к утилизации', status_code: 'active',
+          lim_value: '0.017000', lim_utiled: '0.000000', rest_lim: '0.017000',
+          client_raroc: '0.00', is_exceeded: false,
+        },
+        {
+          limit_id: 'same', owner: 'Инвестиционный блок', product: 'БКФ_ТоргЦб+; Акция ао', currency: '%',
+          status: 'Активен – Лимит доступен к утилизации', status_code: 'active',
+          lim_value: '-0.020000', lim_utiled: '0.000000', rest_lim: '-0.020000',
+          client_raroc: '0.00', is_exceeded: false,
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', (input: RequestInfo) => {
+      const url = String(input);
+      if (url.includes('/api/meta')) return Promise.resolve(json(meta));
+      if (url.includes('/api/groups/')) return Promise.resolve(json(group));
+      if (url.includes('/limits')) return Promise.resolve(json(duplicated));
+      return Promise.resolve(json(card));
+    });
+    render(<App router={createMemoryRouter(routes, { initialEntries: ['/company/7702070139'] })} />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Лимиты' }));
+    const established = within(await screen.findByRole('region', { name: 'Установленные лимиты' }));
+    expect(established.getAllByText('БКФ_ТоргЦб+; Акция ао')).toHaveLength(2);
+    expect(established.getAllByText(money('0.017000', '%'))).toHaveLength(2);
+    expect(established.getAllByText(money('-0.020000', '%'))).toHaveLength(2);
+    expect(established.getAllByText('0,00')).toHaveLength(2);
+    expect(established.getAllByText('0,017 %')).toHaveLength(2);
+    expect(established.queryByText('0,017000 %')).not.toBeInTheDocument();
+    expect(established.queryByText('0,02 %')).not.toBeInTheDocument();
   });
 });

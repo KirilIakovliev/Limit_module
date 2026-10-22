@@ -19,8 +19,8 @@ STALE_AFTER = timedelta(hours=24)
 # Общие фрагменты
 # ----------------------------------------------------------------------------
 # Дедупликация клиентов: в t_lm_1_2_clients один ИНН может встречаться
-# несколько раз (source = 'datahub' / 'egar'). Предпочитаем строку DataHub,
-# затем ту, где заполнен ОГРН.
+# несколько раз (source = 'datahub' / 'egar_lm'). Предпочитаем строку DataHub,
+# затем ту, где заполнен ОГРН. Строки egar_lm не отбрасываются.
 CLIENT_PREFERENCE = '("source" = \'datahub\') DESC, (uparty_ogrn_code IS NULL), uparty_short_name'
 
 # ----------------------------------------------------------------------------
@@ -41,7 +41,7 @@ ORDER BY NULLIF(position(%(q)s IN lower(uparty_short_name)), 0) NULLS LAST,
          uparty_short_name, uparty_inn_code
 LIMIT %(limit)s
 """
-SEARCH_BY_INN = SEARCH_SQL.format(where="uparty_inn_code LIKE %(prefix)s")
+SEARCH_BY_INN = SEARCH_SQL.format(where="btrim(uparty_inn_code) LIKE %(prefix)s")
 SEARCH_BY_NAME = SEARCH_SQL.format(where="uparty_short_name ILIKE %(sub)s")
 # Запасной путь: опечатки (pg_trgm, оператор word_similarity).
 SEARCH_FUZZY = SEARCH_SQL.format(where="%(q)s <%% lower(uparty_short_name)")
@@ -50,7 +50,7 @@ CLIENT_SQL = f"""
 SELECT uparty_inn_code, uparty_code, uparty_short_name, uparty_ogrn_code,
        uparty_kpp_code, okved_code, ods_full_address, "source"
 FROM t_lm_1_2_clients
-WHERE uparty_inn_code = %(inn)s
+WHERE btrim(uparty_inn_code) = btrim(%(inn)s)
 ORDER BY {CLIENT_PREFERENCE}
 LIMIT 1
 """
@@ -59,14 +59,14 @@ LIMIT 1
 CLIENT_GROUP_SQL = """
 SELECT group_crm_id1 AS crm_id, max(group_name) AS name
 FROM t_lm_1_2_gk_info
-WHERE party_inn = %(inn)s AND group_crm_id1 IS NOT NULL
+WHERE btrim(party_inn) = btrim(%(inn)s) AND group_crm_id1 IS NOT NULL
 GROUP BY group_crm_id1
 ORDER BY group_crm_id1
 """
 CLIENT_GROUP_FALLBACK_SQL = """
 SELECT gk_crm_id AS crm_id, max(gk_name) AS name
 FROM t_lm_1_3_limits
-WHERE inn = %(inn)s AND gk_crm_id IS NOT NULL
+WHERE btrim(inn) = btrim(%(inn)s) AND gk_crm_id IS NOT NULL
 GROUP BY gk_crm_id
 ORDER BY gk_crm_id
 """
@@ -79,7 +79,7 @@ ORDER BY gk_crm_id
 GROUP_SUMMARY_SQL = """
 SELECT group_crm_id1                                   AS crm_id,
        max(group_name)                                 AS name,
-       currency,
+       btrim(currency)                                 AS currency,
        count(*)                                        AS members,
        max("cовокупный лимит на гк")                   AS total_limit,
        max("утилиз-й совокупный лимит на гк")          AS total_utilized,
@@ -89,8 +89,8 @@ SELECT group_crm_id1                                   AS crm_id,
        sum("доступный единый лимит по клиенту")        AS unified_available
 FROM t_lm_1_2_gk_info
 WHERE group_crm_id1 = %(crm_id)s
-GROUP BY group_crm_id1, currency
-ORDER BY (currency = 'RUB') DESC, currency
+GROUP BY group_crm_id1, btrim(currency)
+ORDER BY (btrim(currency) = 'RUB') DESC, btrim(currency)
 """
 
 # Имя участника — из t_lm_1_2_clients (LATERAL ... LIMIT 1 исключает размножение
@@ -107,17 +107,21 @@ FROM t_lm_1_2_gk_info g
 LEFT JOIN LATERAL (
     SELECT uparty_inn_code, uparty_short_name
     FROM t_lm_1_2_clients
-    WHERE uparty_inn_code = g.party_inn
+    WHERE btrim(uparty_inn_code) = btrim(g.party_inn)
     ORDER BY {CLIENT_PREFERENCE}
     LIMIT 1
 ) c ON true
 LEFT JOIN LATERAL (
-    SELECT client_name FROM t_lm_1_3_limits
-    WHERE inn = g.party_inn AND client_name IS NOT NULL
-    LIMIT 1
+    SELECT CASE
+               WHEN count(DISTINCT btrim(client_name)) = 1 THEN min(btrim(client_name))
+           END AS client_name
+    FROM t_lm_1_3_limits
+    WHERE btrim(inn) = btrim(g.party_inn)
+      AND client_name IS NOT NULL
+      AND btrim(client_name) <> ''
 ) l ON true
 WHERE g.group_crm_id1 = %(crm_id)s
-ORDER BY (g.currency = 'RUB') DESC, g.currency, g."единый лимит по клиенту" DESC NULLS LAST, g.party_inn
+ORDER BY (btrim(g.currency) = 'RUB') DESC, btrim(g.currency), g."единый лимит по клиенту" DESC NULLS LAST, g.party_inn
 """
 
 # ----------------------------------------------------------------------------
@@ -133,23 +137,23 @@ LEFT JOIN LATERAL (
     SELECT comment_egar
     FROM t_lm_egar_limits e
     WHERE l.owner ILIKE 'Инвестиционный%%'
-      AND e.id::text = l.limit_id
+      AND e.id::text = btrim(l.limit_id)
       AND e.comment_egar IS NOT NULL
     LIMIT 1
 ) e ON true
-WHERE l.inn = %(inn)s
-ORDER BY l.owner, l.currency, l.lim_value DESC NULLS LAST, l.limit_id
+WHERE btrim(l.inn) = btrim(%(inn)s)
+ORDER BY l.owner, btrim(l.currency), l.lim_value DESC NULLS LAST, l.limit_id
 """
 
 # Единые показатели клиента (по валютам) — уже посчитаны витриной, не SUM лимитов.
 CLIENT_UNIFIED_SQL = """
-SELECT group_crm_id1 AS group_crm_id, group_name, currency,
+SELECT group_crm_id1 AS group_crm_id, group_name, btrim(currency) AS currency,
        "единый лимит по клиенту"             AS unified_limit,
        "утилиз-й единый лимит по клиенту"    AS unified_utilized,
        "доступный единый лимит по клиенту"   AS unified_available
 FROM t_lm_1_2_gk_info
-WHERE party_inn = %(inn)s
-ORDER BY (currency = 'RUB') DESC, currency
+WHERE btrim(party_inn) = btrim(%(inn)s)
+ORDER BY (btrim(currency) = 'RUB') DESC, btrim(currency)
 """
 
 # ----------------------------------------------------------------------------
@@ -195,7 +199,7 @@ def get_client(inn: str) -> dict | None:
         return None
     groups = db.fetch_all(CLIENT_GROUP_SQL, {"inn": inn}) or db.fetch_all(CLIENT_GROUP_FALLBACK_SQL, {"inn": inn})
     return {
-        "inn": r["uparty_inn_code"],
+        "inn": _strip(r["uparty_inn_code"]),
         "name": _strip(r["uparty_short_name"]),
         "code": _strip(r["uparty_code"]),
         "ogrn": _strip(r["uparty_ogrn_code"]),
@@ -220,6 +224,7 @@ def get_group(crm_id: str) -> dict | None:
             and s["total_utilized"] > s["total_limit"]
         )
     for m in members:
+        m["inn"] = _strip(m["inn"])
         m["currency"] = _strip(m["currency"])
         m["name"] = _strip(m["name"])
     return {
