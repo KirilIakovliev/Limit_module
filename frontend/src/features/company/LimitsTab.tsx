@@ -1,7 +1,7 @@
 import { Skeleton, Switch, Tooltip } from '@mantine/core';
 import { useState } from 'react';
 import { useGroup, useLimits } from '../../api/hooks';
-import { compactMoney, formatDay, money, raroc, rate } from './format';
+import { formatDay, money, raroc, rate } from './format';
 import { groupByOwner, todayIso, visibleLimits, type LimitRow } from './limitsView';
 import classes from './LimitsTab.module.css';
 
@@ -94,6 +94,16 @@ export function LimitsTab({
   );
 }
 
+function CapText({ value }: { value: string | null | undefined }) {
+  const text = value?.trim() ?? '';
+  if (!text) return '—';
+  return (
+    <Tooltip label={text} multiline w={360} withArrow openDelay={200} position="top">
+      <span className={classes.cap} tabIndex={0}>{text}</span>
+    </Tooltip>
+  );
+}
+
 function emptyLimits(day: string, total: number, onDay: number) {
   if (!day) return 'Установленных лимитов нет.';
   if (onDay === 0 && total > 0) return `На ${formatDay(day)} установленных лимитов нет. Выберите другую дату.`;
@@ -140,9 +150,9 @@ function LimitTable({ rows }: { rows: LimitRow[] }) {
                   {row.status?.trim() || '—'}
                 </span>
               </td>
-              <td>{money(row.lim_value, row.currency)}</td>
-              <td className={row.is_exceeded ? classes.exceeded : undefined}>{money(row.lim_utiled, row.currency)}</td>
-              <td>{money(row.rest_lim, row.currency)}</td>
+              <td>{money(row.lim_value)}</td>
+              <td className={row.is_exceeded ? classes.exceeded : undefined}>{money(row.lim_utiled)}</td>
+              <td>{money(row.rest_lim)}</td>
               <td>{row.currency?.trim() || '—'}</td>
               <td>{formatDay(row.start_date)}</td>
               <td>{formatDay(row.end_date)}</td>
@@ -151,7 +161,7 @@ function LimitTable({ rows }: { rows: LimitRow[] }) {
               <td>{rate(row.rate)}</td>
               <td>{raroc(row.client_raroc)}</td>
               <td className={classes.wrap}>{row.comment?.trim() || '—'}</td>
-              <td className={classes.wrap}>{row.lim_top?.trim() || '—'}</td>
+              <td><CapText value={row.lim_top} /></td>
             </tr>
           ))}
         </tbody>
@@ -181,10 +191,10 @@ function Aggregate({ group }: { group: ReturnType<typeof useGroup> }) {
           {summaries.map((row) => (
             <tr key={row.currency ?? '—'}>
               <td><strong>{row.currency?.trim() || '—'}</strong></td>
-              <td>{compactMoney(row.unified_limit, row.currency)}</td>
-              <td>{compactMoney(row.unified_available, row.currency)}</td>
-              <td>{compactMoney(row.unified_utilized, row.currency)}</td>
-              <td className={row.is_exceeded ? classes.exceeded : undefined}>{compactMoney(row.total_limit, row.currency)}</td>
+              <td>{money(row.unified_limit)}</td>
+              <td>{money(row.unified_available)}</td>
+              <td>{money(row.unified_utilized)}</td>
+              <td className={row.is_exceeded ? classes.exceeded : undefined}>{money(row.total_limit)}</td>
             </tr>
           ))}
         </tbody>

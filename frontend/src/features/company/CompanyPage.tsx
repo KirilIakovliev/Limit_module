@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, useParams } from 'react-router';
 import { ApiError } from '../../api/http';
 import { useClient, useGroup, useLimits, useMeta } from '../../api/hooks';
-import { compactMoney, formatStamp } from './format';
+import { formatStamp, money } from './format';
 import { ApplicationsTab } from './ApplicationsTab';
 import { EventsTab } from './EventsTab';
 import { ExportMenu } from './ExportMenu';
@@ -123,7 +123,6 @@ function GroupBlock({
             <Fact plain label="Сумма единого лимита" value={<SummaryLines rows={data.summaries} field="unified_limit" />} />
             <Fact plain label="Единый утилизированный лимит" value={<SummaryLines rows={data.summaries} field="unified_utilized" />} />
             <Fact plain label="Единый доступный лимит" value={<SummaryLines rows={data.summaries} field="unified_available" />} />
-            <Fact plain label="«Крышка»" value={NO_DATA} />
             <span className={open ? classes.chevronOpen : classes.chevron} aria-hidden="true" />
           </button>
         </h2>
@@ -133,36 +132,26 @@ function GroupBlock({
           <h3>Компании в структуре ГК</h3>
           <p className={classes.hint}>Выберите наименование компании, чтобы перейти к её карточке</p>
           <div className={classes.scroll}>
-            <table className={classes.grid}>
-              <colgroup>
-                <col className={classes.colName} />
-                <col /><col /><col /><col /><col />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th>Наименование ГК</th>
-                  <th>Совокупный лимит</th>
-                  <th>Сумма единого лимита</th>
-                  <th>Единый утилизированный лимит</th>
-                  <th>Единый доступный лимит</th>
-                  <th>«Крышка»</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.inn}>
-                    <td>
-                      <CompanyName row={row} currentInn={currentInn} />
-                    </td>
-                    <td>{NO_DATA}</td>
-                    <td><MemberLines rows={row.rows} field="unified_limit" /></td>
-                    <td><MemberLines rows={row.rows} field="unified_utilized" /></td>
-                    <td><MemberLines rows={row.rows} field="unified_available" /></td>
-                    <td>{NO_DATA}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className={classes.memberGrid} role="table">
+              <div className={`${classes.memberRow} ${classes.memberHead}`} role="row">
+                <span role="columnheader">Наименование ГК</span>
+                <span aria-hidden="true" />
+                <span role="columnheader">Сумма единого лимита</span>
+                <span className={classes.oneLine} role="columnheader">Единый утилизированный лимит</span>
+                <span role="columnheader">Единый доступный лимит</span>
+              </div>
+              {rows.map((row) => (
+                <div className={classes.memberRow} role="row" key={row.inn}>
+                  <span role="cell">
+                    <CompanyName row={row} currentInn={currentInn} />
+                  </span>
+                  <span aria-hidden="true" />
+                  <span className={classes.memberMoney} role="cell"><MemberLines rows={row.rows} field="unified_limit" /></span>
+                  <span className={classes.memberMoney} role="cell"><MemberLines rows={row.rows} field="unified_utilized" /></span>
+                  <span className={classes.memberMoney} role="cell"><MemberLines rows={row.rows} field="unified_available" /></span>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       ) : null}
@@ -216,8 +205,9 @@ function MoneyLines({
   return (
     <span className={classes.lines}>
       {rows.map((row, index) => (
-        <span key={`${row.currency ?? ''}-${index}`} className={row.is_exceeded ? classes.exceeded : undefined}>
-          {compactMoney(row[field], row.currency)}
+        <span key={`${row.currency ?? ''}-${index}`} className={classes.moneyLine}>
+          <span className={row.is_exceeded ? classes.exceeded : undefined}>{money(row[field])}</span>
+          {row.currency?.trim() ? <span className={classes.moneyCode}>{row.currency.trim()}</span> : null}
         </span>
       ))}
     </span>
