@@ -8,6 +8,7 @@ import { ApplicationsTab } from './ApplicationsTab';
 import { EventsTab } from './EventsTab';
 import { ExportMenu } from './ExportMenu';
 import { LimitsTab } from './LimitsTab';
+import { ReservesTab } from './ReservesTab';
 import { todayIso } from './limitsView';
 import classes from './CompanyPage.module.css';
 
@@ -26,7 +27,7 @@ export function CompanyPage() {
   const [showClosed, setShowClosed] = useState(true);
   const card = useClient(inn);
   const meta = useMeta();
-  const limits = useLimits(tab === 'Лимиты' || tab === 'Лимиты на рассмотрении' ? inn : '');
+  const limits = useLimits(tab === 'Лимиты' || tab === 'Лимиты на рассмотрении' || tab === 'Резервы' ? inn : '');
   const crmId = card.data?.group?.crm_id ?? '';
   const group = useGroup(crmId, crmId.length > 0);
   const company = card.data;
@@ -59,22 +60,18 @@ export function CompanyPage() {
           </section>
           <div className={classes.toolbar}>
             <div className={classes.tabs} role="tablist" aria-label="Разделы профиля">
-              {TABS.map((item) => {
-                const open = item !== 'Резервы';
-                return (
-                  <button
-                    key={item}
-                    type="button"
-                    role="tab"
-                    className={item === tab && !eventsOpen ? classes.tabActive : classes.tab}
-                    aria-selected={item === tab && !eventsOpen}
-                    aria-disabled={!open}
-                    onClick={() => { if (open) { setEventsOpen(false); setTab(item); } }}
-                  >
-                    {item}
-                  </button>
-                );
-              })}
+              {TABS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  role="tab"
+                  className={item === tab && !eventsOpen ? classes.tabActive : classes.tab}
+                  aria-selected={item === tab && !eventsOpen}
+                  onClick={() => { setEventsOpen(false); setTab(item); }}
+                >
+                  {item}
+                </button>
+              ))}
             </div>
             <div className={classes.side}>
               <ExportMenu inn={company.inn} tab={tab} asOf={day} showClosed={showClosed} />
@@ -88,8 +85,10 @@ export function CompanyPage() {
             </>
           ) : tab === 'Лимиты' ? (
             <LimitsTab query={limits} group={group} day={day} showClosed={showClosed} onDay={setDay} onShowClosed={setShowClosed} />
-          ) : (
+          ) : tab === 'Лимиты на рассмотрении' ? (
             <ApplicationsTab query={limits} />
+          ) : (
+            <ReservesTab query={limits} />
           )}
         </>
       ) : null}

@@ -137,7 +137,16 @@ describe('LimitsTab', () => {
     expect(screen.queryByRole('heading', { name: 'Единый лимит' })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Лимиты' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Лимиты на рассмотрении' })).not.toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByRole('tab', { name: 'Резервы' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('tab', { name: 'Резервы' })).not.toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(screen.getByRole('tab', { name: 'Резервы' }));
+    const rasbu = within(screen.getByRole('region', { name: 'Резервы РСБУ' }));
+    const msfo = within(screen.getByRole('region', { name: 'Резервы МСФО' }));
+    const rasbuCells = within(rasbu.getAllByRole('row')[1]).getAllByRole('cell').map((cell) => cell.textContent);
+    const msfoCells = within(msfo.getAllByRole('row')[1]).getAllByRole('cell').map((cell) => cell.textContent);
+    const term = `${formatDay('2025-09-12')} — ${formatDay('2026-09-11')}`;
+    const expected = ['МБК', 'RUB', money('100000000'), term, money('0'), '1', '0 %'];
+    expect(rasbuCells).toEqual(expected);
+    expect(msfoCells).toEqual(expected);
   });
 
   it('показывает обе строки с одним limit_id и не округляет долю', async () => {
