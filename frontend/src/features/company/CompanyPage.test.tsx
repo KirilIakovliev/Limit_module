@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { createMemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../app/App';
 import { routes } from '../../app/router';
-import { compactMoney, formatStamp, money, raroc } from './format';
+import { formatStamp, money, raroc } from './format';
 
 const card = {
   inn: '7702070139',
@@ -45,23 +45,23 @@ afterEach(() => {
 });
 
 describe('format', () => {
-  it('сжимает денежную строку и не сдвигает штамп через Date', () => {
-    expect(compactMoney('213500000', 'RUB')).toBe('213,5 млн RUB');
-    expect(compactMoney('20000', 'USD')).toBe('20 тыс. USD');
-    expect(compactMoney(null, 'RUB')).toBe('—');
-    expect(money('100000000', 'RUB')).toBe('100\u00a0000\u00a0000 RUB');
-    expect(money('0.017000', '%')).toBe('0,017 %');
-    expect(money('0.020000', '%')).toBe('0,02 %');
-    expect(money('-0.017000', '%')).toBe('-0,017 %');
-    expect(money('-0.020000', '%')).toBe('-0,02 %');
-    expect(money('0.000000', '%')).toBe('0 %');
-    expect(money('-0.000000', '%')).toBe('0 %');
-    expect(money('0.001000', 'RUB')).toBe('0,001 RUB');
-    expect(money('0.000001', 'RUB')).toBe('0,000001 RUB');
-    expect(money('10.010000', 'RUB')).toBe('10,01 RUB');
-    expect(money('10.100000', 'RUB')).toBe('10,1 RUB');
-    expect(money('100000000.000000', 'RUB')).toBe('100\u00a0000\u00a0000 RUB');
-    expect(money('100000000.120000', 'RUB')).toBe('100\u00a0000\u00a0000,12 RUB');
+  it('показывает сумму как в базе и не сдвигает штамп через Date', () => {
+    expect(money('3550000.000000')).toBe('3\u00a0550\u00a0000');
+    expect(money('213500000')).toBe('213\u00a0500\u00a0000');
+    expect(money(null)).toBe('—');
+    expect(money('100000000')).toBe('100\u00a0000\u00a0000');
+    expect(money('0.017000')).toBe('0,017');
+    expect(money('0.020000')).toBe('0,02');
+    expect(money('-0.017000')).toBe('-0,017');
+    expect(money('-0.020000')).toBe('-0,02');
+    expect(money('0.000000')).toBe('0');
+    expect(money('-0.000000')).toBe('0');
+    expect(money('0.001000')).toBe('0,001');
+    expect(money('0.000001')).toBe('0,000001');
+    expect(money('10.010000')).toBe('10,01');
+    expect(money('10.100000')).toBe('10,1');
+    expect(money('100000000.000000')).toBe('100\u00a0000\u00a0000');
+    expect(money('100000000.120000')).toBe('100\u00a0000\u00a0000,12');
     for (const raw of ['0.017000', '0.020000', '-0.025000', '0.001000', '10.010000', '100000000.120000', '0.000000']) {
       const shown = money(raw).replace(/\s/g, '').replace(',', '.');
       const canonical = raw.replace(/\.(\d*?)0+$/, '.$1').replace(/\.$/, '').replace(/^\+/, '').replace(/^-0$/, '0');
@@ -97,7 +97,7 @@ describe('CompanyPage', () => {
     expect(screen.getByRole('button', { name: /События/ })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByText(/Валют:/)).not.toBeInTheDocument();
     expect(screen.queryByText(/участников:/)).not.toBeInTheDocument();
-    expect(screen.getByText('213,5 млн RUB')).toBeInTheDocument();
+    expect(screen.getByText('213 500 000')).toBeInTheDocument();
     expect(screen.queryByText('текущая компания')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /ГК ВТБ/ }));
     expect(screen.getByRole('button', { name: /ГК ВТБ/ })).toHaveAttribute('aria-expanded', 'true');
@@ -108,23 +108,27 @@ describe('CompanyPage', () => {
     expect(screen.queryByRole('link', { name: 'Без карточки' })).not.toBeInTheDocument();
     const titles = screen.getAllByRole('heading').map((heading) => heading.textContent ?? '');
     expect(titles.findIndex((title) => title.includes('ГК ВТБ'))).toBeGreaterThan(titles.findIndex((title) => title.includes('Общая информация')));
+    const groupBar = screen.getByRole('button', { name: /ГК ВТБ/ });
+    expect(groupBar).toHaveTextContent('Совокупный лимит');
+    expect(groupBar).not.toHaveTextContent('Крышка');
+    const structure = screen.getByRole('region', { name: 'Компании в структуре ГК' });
     const headers = screen.getAllByRole('columnheader').map((cell) => cell.textContent);
     expect(headers).toEqual([
       'Атрибут',
       'Значение',
       'Наименование ГК',
-      'Совокупный лимит',
       'Сумма единого лимита',
       'Единый утилизированный лимит',
       'Единый доступный лимит',
-      '«Крышка»',
     ]);
+    expect(within(structure).queryByRole('columnheader', { name: 'Совокупный лимит' })).not.toBeInTheDocument();
+    expect(within(structure).queryByText(/Крышка/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('link', { name: 'ЗАО «Банк ВТБ (Беларусь)»' }));
     expect(await screen.findByRole('heading', { name: /ГК ВТБ/ })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /ГК ВТБ/ }));
     expect(await screen.findByRole('link', { name: 'Банк ВТБ (ПАО)' })).toHaveAttribute('href', '/company/7702070139');
     expect(screen.queryByRole('link', { name: 'ЗАО «Банк ВТБ (Беларусь)»' })).not.toBeInTheDocument();
-    expect(screen.getAllByText('нет данных').length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByText('нет данных')).toHaveLength(1);
     expect(urls.some((url) => url.includes('/api/groups/1-VTB'))).toBe(true);
     expect(urls.some((url) => url.includes('/limits'))).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: /События/ }));

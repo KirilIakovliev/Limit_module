@@ -190,18 +190,15 @@ def _write_info(ws, snap: Snapshot, styles) -> None:
                 ws.write_string(row, 1, _plain(summary.get("currency")) or DASH, styles["text"])
                 _money(ws, row, 2, summary.get(field), styles)
                 row += 1
-    ws.write_string(row, 0, "«Крышка»", styles["text"])
-    ws.write_string(row, 1, DASH, styles["text"])
-    ws.write_string(row, 2, NO_DATA, styles["text"])
-    row += 2
+    row += 1
     ws.write_string(row, 0, "Компании в структуре ГК", styles["label"])
     row += 1
     columns = (
         "Наименование", "ИНН", "Валюта", "Сумма единого лимита",
-        "Единый утилизированный лимит", "Единый доступный лимит", "Совокупный лимит", "«Крышка»",
+        "Единый утилизированный лимит", "Единый доступный лимит",
     )
     _header(ws, row, columns, styles)
-    for index, width in enumerate((36, 16, 24, 24, 28, 26, 22, 16)):
+    for index, width in enumerate((36, 16, 24, 24, 28, 26)):
         ws.set_column(index, index, width)
     companies = row
     row += 1
@@ -212,8 +209,6 @@ def _write_info(ws, snap: Snapshot, styles) -> None:
         _money(ws, row, 3, member.get("unified_limit"), styles)
         _money(ws, row, 4, member.get("unified_utilized"), styles)
         _money(ws, row, 5, member.get("unified_available"), styles)
-        ws.write_string(row, 6, NO_DATA, styles["text"])
-        ws.write_string(row, 7, NO_DATA, styles["text"])
         row += 1
     if row > companies + 1:
         ws.autofilter(companies, 0, row - 1, len(columns) - 1)

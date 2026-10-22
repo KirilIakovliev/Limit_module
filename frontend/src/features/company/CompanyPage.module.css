@@ -216,11 +216,15 @@
   box-shadow: none;
 }
 
-.groupBar {
+.groupBar,
+.memberRow {
   display: grid;
-  grid-template-columns: minmax(140px, 1.45fr) repeat(5, minmax(0, 1fr));
-  gap: 8px 12px;
+  grid-template-columns: minmax(140px, 1.45fr) minmax(0, 1fr) minmax(0, 1fr) minmax(280px, 1fr) minmax(0, 1fr);
+  column-gap: 12px;
   align-items: start;
+}
+
+.groupBar {
   position: relative;
   width: 100%;
   padding: 2px 28px 2px 0;
@@ -282,8 +286,47 @@
   transform: rotate(-135deg);
 }
 
-.colName {
-  width: 22%;
+.memberGrid {
+  margin-top: 10px;
+  padding-right: 28px;
+}
+
+.memberHead {
+  padding: 0 0 8px;
+}
+
+.memberHead span {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.oneLine {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.memberRow:not(.memberHead) {
+  padding: 8px 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.memberRow:not(.memberHead):hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.memberMoney {
+  color: var(--color-text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.memberRow strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .hint {
@@ -300,6 +343,18 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  font-weight: 600;
+}
+
+.moneyLine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.moneyCode {
+  color: var(--color-text-muted);
+  font-size: 11px;
   font-weight: 600;
 }
 

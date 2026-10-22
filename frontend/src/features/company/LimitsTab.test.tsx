@@ -38,7 +38,9 @@ const limits = {
       status: 'Активен – Лимит доступен к утилизации', status_code: 'active',
       start_date: '2025-09-12', end_date: '2026-09-11',
       lim_value: '100000000', lim_utiled: '5000000', rest_lim: '95000000',
-      rate: '4.5', client_raroc: '4.75', lim_top: 'В пределах норматива Н6', is_exceeded: false,
+      rate: '4.5', client_raroc: '4.75',
+      lim_top: 'Совокупный сублимит по кредиту (КБ) и кредиту (АБЛ) и факторингу - не более 15 000 000 . Утилизация в пределах норматива Н6 Общий лимит 18 610 000',
+      is_exceeded: false,
     },
     {
       limit_id: '2', owner: 'Инвестиционный блок', product: 'Архив МБК', currency: 'RUB',
@@ -107,7 +109,7 @@ describe('LimitsTab', () => {
     expect(headers[headers.indexOf('ОУЛ') + 1]).toBe('Дата решения ОУЛ');
     expect(headers).not.toContain('Владелец');
     expect(established.getAllByText('нет данных').length).toBeGreaterThan(0);
-    expect(established.getByText((text) => text.replace(/\s/g, ' ') === '100 000 000 RUB')).toBeInTheDocument();
+    expect(established.getByText((text) => text.replace(/\s/g, ' ') === '100 000 000')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('switch', { name: 'Показывать закрытые лимиты' }));
     fireEvent.change(screen.getByLabelText('Дата'), { target: { value: '2026-02-01' } });
@@ -119,18 +121,32 @@ describe('LimitsTab', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Орган установивший лимит');
     fireEvent.mouseEnter(established.getAllByText('Дата решения ОУЛ')[0]);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Орган установивший лимит');
+    const cap = established.getByText(/Совокупный сублимит по кредиту/);
+    expect(cap.className).toMatch(/cap/);
+    fireEvent.mouseEnter(cap);
+    expect(await screen.findByRole('tooltip', { name: /Общий лимит 18 610 000/ })).toBeInTheDocument();
 
     const aggregate = within(screen.getByRole('region', { name: 'Единый сублимит' }));
     expect(aggregate.getByRole('columnheader', { name: 'Совокупный лимит' })).toBeInTheDocument();
-    expect(aggregate.getByText('213,5 млн RUB')).toBeInTheDocument();
-    expect(aggregate.getByText('24,1 млн RUB')).toBeInTheDocument();
+    expect(aggregate.getByText('213 450 000')).toBeInTheDocument();
+    expect(aggregate.getByText('24 100 000')).toBeInTheDocument();
+    expect(aggregate.getByText('RUB')).toBeInTheDocument();
     expect(aggregate.queryByRole('heading', { name: /Единый сублимит ·/ })).not.toBeInTheDocument();
-    expect(aggregate.queryByText('210,5 млн RUB')).not.toBeInTheDocument();
+    expect(aggregate.queryByText('210 500 000')).not.toBeInTheDocument();
     expect(established.getByText('4,75')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Единый лимит' })).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Лимиты' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Лимиты на рассмотрении' })).not.toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByRole('tab', { name: 'Резервы' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('tab', { name: 'Резервы' })).not.toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(screen.getByRole('tab', { name: 'Резервы' }));
+    const rasbu = within(screen.getByRole('region', { name: 'Резервы РСБУ' }));
+    const msfo = within(screen.getByRole('region', { name: 'Резервы МСФО' }));
+    const rasbuCells = within(rasbu.getAllByRole('row')[1]).getAllByRole('cell').map((cell) => cell.textContent);
+    const msfoCells = within(msfo.getAllByRole('row')[1]).getAllByRole('cell').map((cell) => cell.textContent);
+    const term = `${formatDay('2025-09-12')} — ${formatDay('2026-09-11')}`;
+    const expected = ['МБК', 'RUB', money('100000000'), term, money('0'), '1', '0 %'];
+    expect(rasbuCells).toEqual(expected);
+    expect(msfoCells).toEqual(expected);
   });
 
   it('показывает обе строки с одним limit_id и не округляет долю', async () => {
@@ -162,11 +178,11 @@ describe('LimitsTab', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Лимиты' }));
     const established = within(await screen.findByRole('region', { name: 'Установленные лимиты' }));
     expect(established.getAllByText('БКФ_ТоргЦб+; Акция ао')).toHaveLength(2);
-    expect(established.getAllByText(money('0.017000', '%'))).toHaveLength(2);
-    expect(established.getAllByText(money('-0.020000', '%'))).toHaveLength(2);
+    expect(established.getAllByText(money('0.017000'))).toHaveLength(2);
+    expect(established.getAllByText(money('-0.020000'))).toHaveLength(2);
     expect(established.getAllByText('0,00')).toHaveLength(2);
-    expect(established.getAllByText('0,017 %')).toHaveLength(2);
-    expect(established.queryByText('0,017000 %')).not.toBeInTheDocument();
+    expect(established.getAllByText('%')).toHaveLength(2);
+    expect(established.queryByText('0,017 %')).not.toBeInTheDocument();
     expect(established.queryByText('0,02 %')).not.toBeInTheDocument();
   });
 });

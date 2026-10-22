@@ -40,7 +40,7 @@ export function ApplicationsTab({ query }: { query: ReturnType<typeof useLimits>
                 <tr key={row.limit_id ?? `${row.product}-${index}`}>
                   <td>{row.product?.trim() || '—'}</td>
                   <td><span className={classes.badge}>{row.status?.trim() || '—'}</span></td>
-                  <td>{money(row.lim_value, row.currency)}</td>
+                  <td>{money(row.lim_value)}</td>
                   <td>{row.currency?.trim() || '—'}</td>
                   <td>{formatDay(row.start_date)}</td>
                   <td>{formatDay(row.end_date)}</td>

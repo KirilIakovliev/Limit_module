@@ -152,6 +152,25 @@
   white-space: normal;
 }
 
+.cap {
+  display: inline-block;
+  max-width: 280px;
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  text-decoration: underline dotted var(--color-text-muted);
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
+.cap:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .badge,
 .badgeClosed {
   display: inline-block;

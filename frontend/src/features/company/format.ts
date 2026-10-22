@@ -3,29 +3,6 @@ const nf = (min: number, max: number) => new Intl.NumberFormat('ru-RU', {
   maximumFractionDigits: max,
 });
 
-/** Доли вроде 0,017 и 0,001 нельзя округлять до двух знаков: витрина хранит NUMERIC(..., 6). */
-function fractionSpan(amount: number): { min: number; max: number } {
-  const text = Object.is(amount, 0) ? '0' : amount.toFixed(6).replace(/\.?0+$/, '');
-  const dot = text.indexOf('.');
-  const frac = dot === -1 ? 0 : text.length - dot - 1;
-  if (frac <= 2) return { min: 0, max: 2 };
-  return { min: frac, max: frac };
-}
-
-/** Отображение денежной строки API. Number только для компактной подписи, как в старом format.js. */
-export function compactMoney(value: string | null | undefined, currency?: string | null): string {
-  if (value == null || value === '') return '—';
-  const amount = Number(value);
-  if (!Number.isFinite(amount)) return '—';
-  const suffix = currency?.trim() ? ` ${currency.trim()}` : '';
-  const abs = Math.abs(amount);
-  if (abs >= 1e9) return `${nf(2, 2).format(amount / 1e9)} млрд${suffix}`;
-  if (abs >= 1e6) return `${nf(1, 1).format(amount / 1e6)} млн${suffix}`;
-  if (abs >= 1e3) return `${nf(0, 0).format(amount / 1e3)} тыс.${suffix}`;
-  const span = fractionSpan(amount);
-  return `${nf(span.min, span.max).format(amount)}${suffix}`;
-}
-
 /** Дата и время из строки API, без перевода через Date. */
 export function formatStamp(iso: string | null | undefined): string {
   if (!iso) return '—';
@@ -55,13 +32,10 @@ function formatExact(value: string): string | null {
   return body;
 }
 
-/** Полная сумма строки лимита. Крупные суммы только группируются, доли не округляются. */
-export function money(value: string | null | undefined, currency?: string | null): string {
+/** Полная сумма строки лимита. Крупные суммы только группируются, доли не округляются. Валюта в строку не входит. */
+export function money(value: string | null | undefined): string {
   if (value == null || value === '') return '—';
-  const exact = formatExact(value);
-  if (exact == null) return '—';
-  const code = currency?.trim();
-  return `${exact}${code ? ` ${code}` : ''}`;
+  return formatExact(value) ?? '—';
 }
 
 export function rate(value: string | null | undefined): string {
