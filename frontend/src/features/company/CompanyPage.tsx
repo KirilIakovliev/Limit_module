@@ -254,7 +254,7 @@ function CompanyName({
   if (!row.hasCard) {
     return (
       <>
-        <strong>{row.name || '—'}</strong>
+        <strong>{row.name || row.inn}</strong>
         <span className={classes.note}>карточки нет</span>
       </>
     );
